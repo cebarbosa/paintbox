@@ -1,3 +1,2 @@
-# LickPy
-A Python library to compute spectral indices for unresolved stellar spectra, in particular 
-Lick indices. 
+# PySPs
+A Python library to compute study stellar populations using absorption lines and single/composite stellar population models.
