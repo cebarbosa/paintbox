@@ -1,2 +1,3 @@
-# PySPs
-A Python library to compute study stellar populations using absorption lines and single/composite stellar population models.
+# BASKET: BAyesian Stellar population and KinEmatics Tools
+
+A Python collection of Bayesian models for the study of kinematics and stellar populations in galaxies.
