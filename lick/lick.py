@@ -12,6 +12,7 @@ Program to calculate lick indices
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 import astropy.units as u
+from astropy import constants
 
 class Lick():
     """ Class to measure Lick indices.
@@ -48,17 +49,21 @@ class Lick():
             systemic velocity of the galaxy.
 
     """
-    def __init__(self, wave, galaxy, bands0, vel=0, dw=None, units=None):
+    def __init__(self, wave, galaxy, bands0, vel=None, dw=None, units=None):
         self.galaxy = galaxy
         self.wave = wave.to(u.AA).value
         self.vel = vel
         self.bands0 = bands0.to(u.AA).value
         if dw is None:
             self.dw = 2
+        if vel is None:
+            self.vel = 0 * u.km / u.s
         self.units = units if units is not None else \
                                                 np.ones(len(self.bands0)) * u.AA
-        c = 299792.458 # Speed of light in km/s
-        self.bands = self.bands0 * np.sqrt((1 + vel/c)/(1 - vel/c))
+        ckms = constants.c.to("km/s")
+        # c = 299792.458 # Speed of light in km/s
+        self.bands = self.bands0 * np.sqrt((1 + self.vel.to("km/s")/ckms)
+                    /(1 - self.vel.to("km/s")/ckms))
 
 
     def classic_integration(self):
