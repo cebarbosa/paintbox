@@ -1,0 +1,4 @@
+emission_NI_fwhm2.7.fits
+emission_OIII_fwhm2.7.fits
+emission_hbeta_fwhm2.7.fits
+emission_hdelta_fwhm2.7.fits
