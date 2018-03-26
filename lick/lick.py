@@ -65,7 +65,6 @@ class Lick():
         self.bands = self.bands0 * np.sqrt((1 + self.vel.to("km/s")/ckms)
                     /(1 - self.vel.to("km/s")/ckms))
 
-
     def classic_integration(self):
         """ Calculation of Lick indices using spline integration.
 
@@ -89,9 +88,13 @@ class Lick():
         self.Ia = np.zeros_like(self.R)
         self.Im = np.zeros_like(self.R)
         for i, w in enumerate(self.bands):
-            if (w[0] - self.dw < self.wave[0]) or \
-               (w[-1] + self.dw > self.wave[-1]):
+            condition = np.array([w[0]-self.dw > self.wave[0],
+                                 w[-1]+self.dw < self.wave[-1]])
+            if not np.all(condition):
                 self.R[i] = np.nan
+                self.Ia[i] = np.nan
+                self.Im[i] = np.nan
+                continue
             # Defining indices for each section
             idxb = np.where(((self.wave > w[0] - self.dw) &
                                  (self.wave < w[1] + self.dw)))
