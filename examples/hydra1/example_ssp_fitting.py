@@ -10,120 +10,99 @@ Determination of LOSVD of a given spectrum similarly to pPXF.
 """
 
 import os
-import sys
+import pickle
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
-                '..')))
+import context
 
 import numpy as np
 import pymc3 as pm
-import theano
-import theano.tensor as T
-from astropy import constants
+from theano import tensor as tt
 import matplotlib.pyplot as plt
 from specutils.io.read_fits import read_fits_spectrum1d
-from scipy.interpolate import LinearNDInterpolator
-from scipy.ndimage.filters import convolve1d
+from scipy.ndimage.filters import gaussian_filter1d
+from scipy.optimize import least_squares
+from scipy.stats import multivariate_normal
 
-from miles_util import Miles
-from ppxf_util import log_rebin, gaussian_filter1d
+from ppxf.ppxf_util import log_rebin
+from ppxf.miles_util import Miles
 from der_snr import DER_SNR
 
+class MilesCategorical():
+    """ Uses Capellari's program to load templates and flatten arrays. """
+    def __init__(self, velscale, fwhm=2.51):
+        self.velscale = velscale
+        self.fwhm = fwhm
+        path = os.path.join(context.basedir, "ppxf/miles_models")
+        pathname = "{}/Mun1.3*.fits".format(path)
+        self.miles = Miles(pathname, velscale, fwhm)
+        self.templates = self.miles.templates.T
+        self.templates = self.templates.reshape(-1, self.templates.shape[-1])
+        self.ages = self.miles.age_grid.T.reshape(-1)
+        self.metals = self.miles.metal_grid.T.reshape(-1)
+        self.grid_shape = self.miles.age_grid.T.shape
+        self.age_range = [self.ages.min(), self.ages.max()]
+        self.metal_range = [self.metals.min(), self.metals.max()]
+        return
 
+def example_csp(redo=False, plot_weights=False, plot_model=False,
+                method="NUTS"):
+    """ Produces a CSP spectraum using SSP and tries to recovery it using
+    Bayesian modeling. """
+    # Load templates
+    dbname = os.path.join("csp_{}.db".format(method.lower()))
+    miles = MilesCategorical(velscale=40)
+    X = np.column_stack((miles.ages, miles.metals))
+    mu_actual1 = np.array([8, -0.5])
+    cov_actual1 = np.array([[1, 0.0], [0.0, 0.1]])
+    var1 = multivariate_normal(mean=mu_actual1, cov=cov_actual1).pdf
+    mu_actual2 = np.array([2, -1])
+    cov_actual2 = np.array([[2, 0.2], [0.5, 0.2]])
+    var2 = multivariate_normal(mean=mu_actual2, cov=cov_actual2).pdf
+    w = np.zeros_like(miles.ages)
 
-class MilesInterp():
-    """ Produces interpolated model using the pPXF interface for the
-        MILES data. """
-    def __init__(self, velscale):
-        filenames = os.path.join(os.getcwd(), "miles_models", 'Mun1.30*.fits')
-        miles = Miles(filenames, velscale, 2.51)
-        dim = miles.age_grid.shape
-        grid = np.array(np.meshgrid(np.arange(dim[0]),
-                                    np.arange(dim[1]))).T.reshape(-1, 2)
-        self.pars = np.zeros((np.prod(dim), 2))
-        self.templates = np.zeros((len(self.pars), len(miles.templates)))
-        for i, (i1, i2) in enumerate(grid):
-            self.pars[i] = [np.log10(miles.age_grid[i1, i2]), miles.metal_grid[
-                i1, i2]]
-            self.templates[i] = miles.templates[:, i1, i2]
-        self.model = LinearNDInterpolator(self.pars, self.templates)
-        self.ranges = np.array([self.pars.min(axis=0), self.pars.max(axis=0)]).T
+    for i,x in enumerate(X):
+        w[i] = var1(x) + var2(x)
+    w /= w.sum()
+    if plot_weights:
+        plt.pcolormesh(miles.ages.reshape(miles.grid_shape),
+                       miles.metals.reshape(miles.grid_shape),
+                       w.reshape(miles.grid_shape))
+        plt.colorbar()
+        plt.show()
+    yhat = np.dot(w, miles.templates)
+    y = yhat + np.random.normal(0, np.median(yhat) * 0.01, len(yhat))
+    if os.path.exists(dbname) and not redo:
+        return dbname, y
+    if plot_model:
+        plt.plot(yhat, "-")
+        plt.show()
 
-    def __call__(self, *args):
-        return self.model(*args)
+    def stick_breaking(beta):
+        portion_remaining = tt.concatenate(
+            [[1], tt.extra_ops.cumprod(1 - beta)[:-1]])
 
-class MilesCathegorical():
-    """ Produces interpolated model using the pPXF interface for the
-        MILES data. """
-    def __init__(self, velscale):
-        filenames = os.path.join(os.getcwd(), "miles_models", 'Mun1.30*.fits')
-        miles = Miles(filenames, velscale, 2.51)
-        dim = miles.age_grid.shape
-        grid = np.array(np.meshgrid(np.arange(dim[0]),
-                                    np.arange(dim[1]))).T.reshape(-1, 2)
-        self.pars = np.zeros((np.prod(dim), 2))
-        self.templates = np.zeros((len(self.pars), len(miles.templates)))
-        for i, (i1, i2) in enumerate(grid):
-            self.pars[i] = [miles.age_grid[i1, i2], miles.metal_grid[
-                i1, i2]]
-            self.templates[i] = miles.templates[:, i1, i2]
-        self.ranges = np.array([self.pars.min(axis=0), self.pars.max(axis=0)]).T
-
-
-    def __call__(self, args):
-        return self.templates[args]
-
-def single_stellar_population(spec, velscale):
-    """ Model stellar populations. """
-    miles = MilesInterp(velscale)
-
-    @theano.compile.ops.as_op(itypes=[T.dscalar, T.dscalar], otypes=[T.dvector])
-    def ssp(age, metal):
-        return miles(age, metal)
-    spec = miles(0.0,0.0)
-    obs = spec
+        return beta * portion_remaining
     with pm.Model() as model:
-        age = pm.Uniform("age", lower=miles.ranges[0,0],
-                         upper=miles.ranges[0,1])
-        metal = pm.Uniform("metal", lower=miles.ranges[1,0],
-                         upper=miles.ranges[1,1])
-        beta = pm.HalfCauchy("beta", beta=1)
-        like = pm.Normal("like", mu=ssp(age, metal), sd=beta,
-                         observed=obs)
-    with model:
-        trace = pm.sample(10, tune=5, step=pm.Slice())
-    pm.summary(trace)
-    plt.plot(spec, "-")
-    plt.plot(miles(trace["age"].mean(), trace["metal"].mean()), "-")
-    plt.plot(miles(np.mean(trace["age"]), np.mean(miles(trace["metal"]))))
-    plt.show()
-    print(map)
-    pm.traceplot(trace)
-    plt.show()
+        w = pm.Dirichlet("w", np.ones(len(miles.templates)))
+        bestfit = pm.math.dot(w.T, miles.templates)
+        sigma = pm.Exponential("sigma", lam=1)
+        likelihood = pm.Normal('like', mu=bestfit,
+                                   sd = sigma, observed=y)
+    if method == "NUTS":
+        with model:
+            trace = pm.sample(1000, tune=500)
+        results = {'model': model, "trace": trace}
+        with open(dbname, 'wb') as buff:
+            pickle.dump(results, buff)
+    if method == "svgd":
+        with model:
+            approx = pm.fit(300, method='svgd')
+        results = {'model': model, "approx": approx}
+        with open(dbname, 'wb') as buff:
+            pickle.dump(results, buff)
+    return dbname, y
 
-def composite_stellar_population(spec, velscale, K=2):
-    """ Simplified version of pPXF using Bayesian approach.
-
-     TODO: This is just a prototype for the function, requires more work.
-     """
-    miles = MilesCathegorical(velscale)
-    matrix = T.as_tensor_variable(miles.templates)
-    alpha = np.ones(len(templates)) / len(templates)
-    fakeobs = 0.6 * templates[10] + 0.4 * templates[100]
-
-    with pm.Model() as model:
-        idx = pm.Categorical("idx", alpha, shape=K)
-        w = pm.Dirichlet("w", np.ones(K))
-        y = T.dot(w, matrix[idx])
-        y = pm.Deterministic("y", y)
-        like = pm.Normal("like", mu=y, sd=1., observed=fakeobs)
-    with model:
-        trace = pm.sample(1000)
-    pm.traceplot(trace)
-    plt.show()
-
-
-def example_ssps():
+def example_hydra():
     """ Fist example using Hydra cluster data to make ppxf-like model.
 
     The observed spectrum is one of the central spectra the Hydra I cluster
@@ -134,20 +113,50 @@ def example_ssps():
     line-of-sight velocity distribution using a Gauss-Hermite distribution.
 
     """
-    specfile =  os.path.join(os.getcwd(), "hydra1/fin1_n3311cen1_s29a.fits")
+    # Constants and instrumental properties
+    velscale = 40 # km/s; this is the resolution used for the binning
+    fwhm_fors2 = 2.1 # FWHM (Angstrom) of FORS2 data
+    fwhm_miles = 2.51 # FWHM (Angstrom) of MILES stellar library
+    ###########################################################################
+    # Preparing the data for the fitting
+    specfile =  os.path.join(os.getcwd(), "data/fin1_n3311cen1_s29a.fits")
     spec = read_fits_spectrum1d(specfile)
     disp = spec.dispersion[1] - spec.dispersion[0]
-    velscale = 40
-    fwhm_fors2 = 2.1
-    fwhm_miles = 2.51
     fwhm_dif = np.sqrt((fwhm_miles ** 2 - fwhm_fors2 ** 2))
     sigma = fwhm_dif / 2.355 / disp
     galaxy = gaussian_filter1d(spec.flux, sigma)
     lamrange = [spec.dispersion[0], spec.dispersion[-1]]
     galaxy, wave = log_rebin(lamrange, galaxy, velscale=velscale)[:2]
-    # Read templates
-    mcmcmodel = composite_stellar_population(spec, velscale)
-    # noise = np.median(spec.flux) / snr * np.ones_like(galaxy)
+    noise = np.median(spec.flux) / DER_SNR(spec.flux) * np.ones_like(galaxy)
+    # TODO: crop spectrum to use only good wavelength range.
+    ############################################################################
+    miles = MilesCategorical(velscale)
+    dbname, spec = example_csp()
+    with open(dbname, 'rb') as buff:
+        mcmc = pickle.load(buff)
+    miles = MilesCategorical(velscale=40)
+    # approx = mcmc["approx"]
+    # weights = approx.sample(1000)["w"].mean(axis=0)
+    trace = mcmc["trace"]
+    weights = trace["w"].mean(axis=0)
+    weights = weights.reshape(miles.grid_shape)
+    # plt.pcolormesh(miles.ages.reshape(miles.grid_shape),
+    #                miles.metals.reshape(miles.grid_shape),
+    #                weights)
+    # plt.colorbar()
+    # plt.show()
+    ages = miles.miles.age_grid.T
+    metal = miles.miles.metal_grid.T
+    plt.plot(ages.sum())
+    # print(np.average(ages, weights=weights))
+    # print(np.average(metal, weights=weights))
+    # plt.pcolormesh(miles.ages.reshape(miles.grid_shape),
+    #                miles.metals.reshape(miles.grid_shape),
+    #                weights * ages)
+    # plt.colorbar()
+    # plt.show()
+    # mcmcmodel = composite_stellar_population(spec, velscale)
+    #
     # c = constants.c.to("km/s").value
     # dv = np.log(np.exp(miles.log_lam_temp[0]) / lamrange[0]) * c
     # start = [4000, 300]
@@ -159,5 +168,6 @@ def example_ssps():
     # plt.show()
     # print(pp)
 
+
 if __name__ == "__main__":
-    example_ssps()
+    example_hydra()
