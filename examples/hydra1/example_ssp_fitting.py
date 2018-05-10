@@ -28,79 +28,109 @@ from ppxf.miles_util import Miles
 from der_snr import DER_SNR
 
 class MilesCategorical():
-    """ Uses Capellari's program to load templates and flatten arrays. """
+    """ Uses Capellari's program to load templates. """
     def __init__(self, velscale, fwhm=2.51):
         self.velscale = velscale
         self.fwhm = fwhm
         path = os.path.join(context.basedir, "ppxf/miles_models")
         pathname = "{}/Mun1.3*.fits".format(path)
         self.miles = Miles(pathname, velscale, fwhm)
-        self.templates = self.miles.templates.T
-        self.templates = self.templates.reshape(-1, self.templates.shape[-1])
-        self.ages = self.miles.age_grid.T.reshape(-1)
-        self.metals = self.miles.metal_grid.T.reshape(-1)
-        self.grid_shape = self.miles.age_grid.T.shape
-        self.age_range = [self.ages.min(), self.ages.max()]
-        self.metal_range = [self.metals.min(), self.metals.max()]
+        self.templates3D = self.miles.templates.T
+        self.ages2D = self.miles.age_grid.T
+        self.metals2D = self.miles.metal_grid.T
+        self.grid_shape = self.ages2D.shape
+        # Reshaping arrays
+        self.templates2D = self.templates3D.reshape(-1, self.templates3D.shape[
+            -1])
+        self.ages1D = self.ages2D.reshape(-1)
+        self.metals1D = self.metals2D.reshape(-1)
+        # Get ranges for parameters
+        self.age_range = [self.ages1D.min(), self.ages1D.max()]
+        self.metal_range = [self.metals1D.min(), self.metals1D.max()]
         return
 
-def example_csp(redo=False, plot_weights=False, plot_model=False,
-                method="NUTS"):
+def example_csp(redo=False, plot_weights=True, plot_model=False,
+                plot_results=True, method="NUTS", velscale=300):
     """ Produces a CSP spectraum using SSP and tries to recovery it using
     Bayesian modeling. """
-    # Load templates
-    dbname = os.path.join("csp_{}.db".format(method.lower()))
-    miles = MilesCategorical(velscale=40)
-    X = np.column_stack((miles.ages, miles.metals))
-    mu_actual1 = np.array([8, -0.5])
-    cov_actual1 = np.array([[1, 0.0], [0.0, 0.1]])
-    var1 = multivariate_normal(mean=mu_actual1, cov=cov_actual1).pdf
-    mu_actual2 = np.array([2, -1])
-    cov_actual2 = np.array([[2, 0.2], [0.5, 0.2]])
-    var2 = multivariate_normal(mean=mu_actual2, cov=cov_actual2).pdf
-    w = np.zeros_like(miles.ages)
-
+    # Producing a CSP spectrum
+    miles = MilesCategorical(velscale=velscale)
+    mu_actual1 = np.array([10, -0.5])
+    cov_actual1 = np.array([[0.5, 0.0], [0.02, 0.05]])
+    w1 = multivariate_normal(mean=mu_actual1, cov=cov_actual1).pdf
+    mu_actual2 = np.array([2, -1.4])
+    cov_actual2 = np.array([[0.2, 0.02], [0.01, 0.03]])
+    w2 = multivariate_normal(mean=mu_actual2, cov=cov_actual2).pdf
+    X = np.column_stack((miles.ages1D, miles.metals1D))
+    W1, W2 = np.zeros(len(X)), np.zeros(len(X))
     for i,x in enumerate(X):
-        w[i] = var1(x) + var2(x)
-    w /= w.sum()
-    if plot_weights:
-        plt.pcolormesh(miles.ages.reshape(miles.grid_shape),
-                       miles.metals.reshape(miles.grid_shape),
-                       w.reshape(miles.grid_shape))
-        plt.colorbar()
-        plt.show()
-    yhat = np.dot(w, miles.templates)
-    y = yhat + np.random.normal(0, np.median(yhat) * 0.01, len(yhat))
-    if os.path.exists(dbname) and not redo:
-        return dbname, y
+        W1[i] = w1(x)
+        W2[i] = w2(x)
+    W1 /= W1.sum()
+    W2 /= W2.sum()
+    f1 = 0.88
+    f2 = 1 - f1
+    model1 = f1 * np.dot(W1, miles.templates2D)
+    model2 = f2 * np.dot(W2, miles.templates2D)
+    model = model1 + model2
     if plot_model:
-        plt.plot(yhat, "-")
-        plt.show()
+        plt.plot(model1, label="Old CSP")
+        plt.plot(model2, label="New CSP")
+        plt.plot(model, label="Model")
+    W = (f1 * W1 + f2 * W2).reshape(miles.grid_shape)
+    if plot_weights:
+        plt.figure(10)
+        ax = plt.subplot(2, 2, 1)
+        m = ax.pcolormesh(miles.ages2D, miles.metals2D, W, vmax=0.1)
+        plt.colorbar(m)
+        ax = plt.subplot(2, 2, 2)
+        ax.plot(miles.ages2D[0], (W).sum(axis=0))
+        ax = plt.subplot(2, 2, 3)
+        ax.plot(miles.metals2D[:, 0], W.sum(axis=1))
+    dbname = csp_modeling(model, miles.templates2D, redo=redo, method=method)
+    with open(dbname, 'rb') as buff:
+        mcmc = pickle.load(buff)
+    if method == "NUTS":
+        trace = mcmc["trace"]
+        weights = trace["w"].mean(axis=0)
+    elif method in ["svgd", "advi"]:
+        approx = mcmc["approx"]
+        weights = approx.sample(1000)["w"].mean(axis=0)
+    weights = weights.reshape(miles.grid_shape)
+    if plot_results:
+        plt.figure(5)
+        ax = plt.subplot(2, 2, 1)
+        m = ax.pcolormesh(miles.ages2D, miles.metals2D, weights, vmax=0.1)
+        plt.colorbar(m)
+        ax = plt.subplot(2, 2, 2)
+        ax.plot(miles.ages2D[0], (weights).sum(axis=0))
+        ax = plt.subplot(2, 2, 3)
+        ax.plot(miles.metals2D[:, 0], weights.sum(axis=1))
+    plt.show()
 
-    def stick_breaking(beta):
-        portion_remaining = tt.concatenate(
-            [[1], tt.extra_ops.cumprod(1 - beta)[:-1]])
-
-        return beta * portion_remaining
+def csp_modeling(obs, templates, redo=False, method="NUTS"):
+    """ Model a CSP with bayesian model. """
+    dbname = os.path.join("csp_{}.db".format(method.lower()))
+    if os.path.exists(dbname) and not redo:
+        return dbname
     with pm.Model() as model:
-        w = pm.Dirichlet("w", np.ones(len(miles.templates)))
-        bestfit = pm.math.dot(w.T, miles.templates)
+        w = pm.Dirichlet("w", np.ones(len(templates)))
+        bestfit = pm.math.dot(w.T, templates)
         sigma = pm.Exponential("sigma", lam=1)
-        likelihood = pm.Normal('like', mu=bestfit,
-                                   sd = sigma, observed=y)
+        likelihood = pm.Normal('like', mu=bestfit, sd = sigma, observed=obs)
     if method == "NUTS":
         with model:
             trace = pm.sample(1000, tune=500)
         results = {'model': model, "trace": trace}
         with open(dbname, 'wb') as buff:
             pickle.dump(results, buff)
-    if method == "svgd":
+    elif method in ["svgd", "advi"]:
         with model:
-            approx = pm.fit(300, method='svgd')
+            approx = pm.fit(10000, method=method, obj_n_mc=10)
         results = {'model': model, "approx": approx}
         with open(dbname, 'wb') as buff:
             pickle.dump(results, buff)
-    return dbname, y
+    return dbname
 
 def example_hydra():
     """ Fist example using Hydra cluster data to make ppxf-like model.
@@ -130,31 +160,10 @@ def example_hydra():
     noise = np.median(spec.flux) / DER_SNR(spec.flux) * np.ones_like(galaxy)
     # TODO: crop spectrum to use only good wavelength range.
     ############################################################################
-    miles = MilesCategorical(velscale)
-    dbname, spec = example_csp()
-    with open(dbname, 'rb') as buff:
-        mcmc = pickle.load(buff)
-    miles = MilesCategorical(velscale=40)
-    # approx = mcmc["approx"]
-    # weights = approx.sample(1000)["w"].mean(axis=0)
-    trace = mcmc["trace"]
-    weights = trace["w"].mean(axis=0)
-    weights = weights.reshape(miles.grid_shape)
-    # plt.pcolormesh(miles.ages.reshape(miles.grid_shape),
-    #                miles.metals.reshape(miles.grid_shape),
-    #                weights)
-    # plt.colorbar()
-    # plt.show()
-    ages = miles.miles.age_grid.T
-    metal = miles.miles.metal_grid.T
-    plt.plot(ages.sum())
+
+
     # print(np.average(ages, weights=weights))
     # print(np.average(metal, weights=weights))
-    # plt.pcolormesh(miles.ages.reshape(miles.grid_shape),
-    #                miles.metals.reshape(miles.grid_shape),
-    #                weights * ages)
-    # plt.colorbar()
-    # plt.show()
     # mcmcmodel = composite_stellar_population(spec, velscale)
     #
     # c = constants.c.to("km/s").value
@@ -170,4 +179,4 @@ def example_hydra():
 
 
 if __name__ == "__main__":
-    example_hydra()
+    example_csp(redo=False, method="svgd")
