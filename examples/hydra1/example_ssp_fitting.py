@@ -16,11 +16,9 @@ import context
 
 import numpy as np
 import pymc3 as pm
-from theano import tensor as tt
 import matplotlib.pyplot as plt
 from specutils.io.read_fits import read_fits_spectrum1d
 from scipy.ndimage.filters import gaussian_filter1d
-from scipy.optimize import least_squares
 from scipy.stats import multivariate_normal
 
 from ppxf.ppxf_util import log_rebin
@@ -49,8 +47,7 @@ class MilesCategorical():
         self.metal_range = [self.metals1D.min(), self.metals1D.max()]
         return
 
-def example_csp(redo=False, plot_weights=True, plot_model=False,
-                plot_results=True, method="NUTS", velscale=300):
+def example_two_csps(redo=False, plot=True, velscale=300, sn=30):
     """ Produces a CSP spectraum using SSP and tries to recovery it using
     Bayesian modeling. """
     # Producing a CSP spectrum
@@ -73,44 +70,74 @@ def example_csp(redo=False, plot_weights=True, plot_model=False,
     model1 = f1 * np.dot(W1, miles.templates2D)
     model2 = f2 * np.dot(W2, miles.templates2D)
     model = model1 + model2
-    if plot_model:
-        plt.plot(model1, label="Old CSP")
-        plt.plot(model2, label="New CSP")
-        plt.plot(model, label="Model")
+    signal = np.median(model)
+    noise = np.random.normal(0, signal / sn, size=len(model))
     W = (f1 * W1 + f2 * W2).reshape(miles.grid_shape)
-    if plot_weights:
-        plt.figure(10)
-        ax = plt.subplot(2, 2, 1)
-        m = ax.pcolormesh(miles.ages2D, miles.metals2D, W, vmax=0.1)
-        plt.colorbar(m)
-        ax = plt.subplot(2, 2, 2)
-        ax.plot(miles.ages2D[0], (W).sum(axis=0))
-        ax = plt.subplot(2, 2, 3)
-        ax.plot(miles.metals2D[:, 0], W.sum(axis=1))
-    dbname = csp_modeling(model, miles.templates2D, redo=redo, method=method)
+
+    observed = model + noise
+    dbname = os.path.join(context.workdir,
+                          "example_two_csps_sn{}.db".format(sn))
+    csp_modeling(model, miles.templates2D, dbname, redo=redo)
     with open(dbname, 'rb') as buff:
         mcmc = pickle.load(buff)
-    if method == "NUTS":
-        trace = mcmc["trace"]
-        weights = trace["w"].mean(axis=0)
-    elif method in ["svgd", "advi"]:
-        approx = mcmc["approx"]
-        weights = approx.sample(1000)["w"].mean(axis=0)
+    trace = mcmc["trace"]
+    weights = trace["w"].mean(axis=0)
     weights = weights.reshape(miles.grid_shape)
-    if plot_results:
-        plt.figure(5)
-        ax = plt.subplot(2, 2, 1)
-        m = ax.pcolormesh(miles.ages2D, miles.metals2D, weights, vmax=0.1)
-        plt.colorbar(m)
-        ax = plt.subplot(2, 2, 2)
-        ax.plot(miles.ages2D[0], (weights).sum(axis=0))
-        ax = plt.subplot(2, 2, 3)
-        ax.plot(miles.metals2D[:, 0], weights.sum(axis=1))
+    lam = np.exp(miles.miles.log_lam_temp)
+    if plot:
+        ax1 = plt.subplot2grid((3, 2), (0, 0), colspan=2)
+        ax1.minorticks_on()
+        ax1.plot(lam, model1, label="CSP 1")
+        ax1.plot(lam, model2, label="CSP 2")
+        ax1.plot(lam, observed, label="Model (S/N={})".format(sn))
+        ax1.set_xlabel("$\lambda$ (\AA)")
+        ax1.legend()
+        ax2 = plt.subplot2grid((3, 2), (1, 0))
+        ax2.minorticks_on()
+        ax2.set_title("Model")
+        vmax = np.percentile(W, 98.8)
+        m = ax2.pcolormesh(np.log10(miles.ages2D), miles.metals2D, W,
+                           vmax=vmax, vmin=0, cmap="cubehelix_r")
+        ax2.set_ylabel("[Fe/H]")
+        ax2.set_xlabel("log Age (Gyr)")
+        cbar2 = plt.colorbar(m)
+        cbar2.set_label("Weight")
+        ax3 = plt.subplot2grid((3, 2), (1, 1))
+        ax3.minorticks_on()
+        m = ax3.pcolormesh(np.log10(miles.ages2D), miles.metals2D, weights,
+                           vmax=vmax, vmin=0, cmap="cubehelix_r")
+        ax3.set_ylabel("[Fe/H]")
+        ax3.set_xlabel("log Age (Gyr)")
+        cbar3 = plt.colorbar(m)
+        cbar3.set_label("Weight")
+        ax3.set_title("Observed (S/N={})".format(sn))
+        ax4 = plt.subplot2grid((3, 2), (2, 0))
+        ax4.minorticks_on()
+        ages = np.log10(miles.ages2D[0])
+        dw = 0.025
+        w1 = W.sum(axis=0)
+        w2 = weights.sum(axis=0)
+        ax4.bar(ages- dw, w1, label="Model", width=0.05, alpha=0.8)
+        ax4.bar(ages + dw, w2, label="Observed (S/N={})".format(sn),
+                width=0.05, alpha=0.8)
+        ax4.legend()
+        ax4.set_xlabel("Age (Gyr)")
+        ax4.set_ylabel("SFH")
+        ax5 = plt.subplot2grid((3, 2), (2, 1))
+        ax5.minorticks_on()
+        metal= miles.metals2D[:,0]
+        w1 = W.sum(axis=1)
+        w2 = weights.sum(axis=1)
+        dw = 0.05
+        ax5.bar(metal - dw, w1, label="Model", alpha=0.8, width=0.1)
+        ax5.bar(metal + dw, w2, label="Observed (S/N={})".format(sn),
+                alpha=0.8, width=0.1)
+        ax5.legend()
+        ax4.set_xlabel("[Fe/H]")
     plt.show()
 
-def csp_modeling(obs, templates, redo=False, method="NUTS"):
+def csp_modeling(obs, templates, dbname, redo=False,):
     """ Model a CSP with bayesian model. """
-    dbname = os.path.join("csp_{}.db".format(method.lower()))
     if os.path.exists(dbname) and not redo:
         return dbname
     with pm.Model() as model:
@@ -118,19 +145,12 @@ def csp_modeling(obs, templates, redo=False, method="NUTS"):
         bestfit = pm.math.dot(w.T, templates)
         sigma = pm.Exponential("sigma", lam=1)
         likelihood = pm.Normal('like', mu=bestfit, sd = sigma, observed=obs)
-    if method == "NUTS":
-        with model:
-            trace = pm.sample(1000, tune=500)
-        results = {'model': model, "trace": trace}
-        with open(dbname, 'wb') as buff:
-            pickle.dump(results, buff)
-    elif method in ["svgd", "advi"]:
-        with model:
-            approx = pm.fit(10000, method=method, obj_n_mc=10)
-        results = {'model': model, "approx": approx}
-        with open(dbname, 'wb') as buff:
-            pickle.dump(results, buff)
-    return dbname
+    with model:
+        trace = pm.sample(1000, tune=1000)
+    results = {'model': model, "trace": trace}
+    with open(dbname, 'wb') as buff:
+        pickle.dump(results, buff)
+    return
 
 def example_hydra():
     """ Fist example using Hydra cluster data to make ppxf-like model.
@@ -179,4 +199,5 @@ def example_hydra():
 
 
 if __name__ == "__main__":
-    example_csp(redo=False, method="svgd")
+    # example_two_ssps()
+    example_two_csps(redo=False, sn=25)

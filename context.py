@@ -12,3 +12,5 @@ import sys
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, basedir)
+
+workdir = "/home/kadu/Dropbox/basket/"
