@@ -26,7 +26,7 @@ def tmcsp(wave, flux, templates, dbname, redo=False, adegree=10):
 
     with pm.Model() as model:
         flux0 = pm.Normal("f0", mu=1, sd=5)
-        w = pm.Dirichlet("w", np.ones(len(templates)))
+        w = pm.Dirichlet("w", np.ones(len(templates)) / len(templates))
 
     if adegree is not None:
         x = np.linspace(-1, 1, len(wave))
@@ -43,11 +43,12 @@ def tmcsp(wave, flux, templates, dbname, redo=False, adegree=10):
                                                                    templates)))
 
     with model:
-        sigma = pm.Exponential("sigma", lam=1)
+        sigma = pm.Exponential("sigma", lam=0.01)
         pm.Normal('like', mu=bestfit, sd = sigma, observed=flux)
         # pm.Cauchy("like", alpha=bestfit, beta=sigma, observed=flux)
     with model:
-        trace = pm.sample(1000, tune=1000)
+        trace = pm.sample(2000, tune=3000, nuts_kwargs={"target_accept" :
+                                                            0.98})
     results = {'model': model, "trace": trace}
     with open(dbname, 'wb') as buff:
         pickle.dump(results, buff)

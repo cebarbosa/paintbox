@@ -152,52 +152,6 @@ def csp_modeling(obs, templates, dbname, redo=False,):
         pickle.dump(results, buff)
     return
 
-def example_hydra():
-    """ Fist example using Hydra cluster data to make ppxf-like model.
-
-    The observed spectrum is one of the central spectra the Hydra I cluster
-    core observed with VLT/FORS2 presented in Barbosa et al. 2016. This
-    spectrum is not flux calibrated, hence the need of a polynomial term.
-
-    In this example, we use a single spectrum with high S/N to derive the
-    line-of-sight velocity distribution using a Gauss-Hermite distribution.
-
-    """
-    # Constants and instrumental properties
-    velscale = 40 # km/s; this is the resolution used for the binning
-    fwhm_fors2 = 2.1 # FWHM (Angstrom) of FORS2 data
-    fwhm_miles = 2.51 # FWHM (Angstrom) of MILES stellar library
-    ###########################################################################
-    # Preparing the data for the fitting
-    specfile =  os.path.join(os.getcwd(), "data/fin1_n3311cen1_s29a.fits")
-    spec = read_fits_spectrum1d(specfile)
-    disp = spec.dispersion[1] - spec.dispersion[0]
-    fwhm_dif = np.sqrt((fwhm_miles ** 2 - fwhm_fors2 ** 2))
-    sigma = fwhm_dif / 2.355 / disp
-    galaxy = gaussian_filter1d(spec.flux, sigma)
-    lamrange = [spec.dispersion[0], spec.dispersion[-1]]
-    galaxy, wave = log_rebin(lamrange, galaxy, velscale=velscale)[:2]
-    noise = np.median(spec.flux) / DER_SNR(spec.flux) * np.ones_like(galaxy)
-    # TODO: crop spectrum to use only good wavelength range.
-    ############################################################################
-
-
-    # print(np.average(ages, weights=weights))
-    # print(np.average(metal, weights=weights))
-    # mcmcmodel = composite_stellar_population(spec, velscale)
-    #
-    # c = constants.c.to("km/s").value
-    # dv = np.log(np.exp(miles.log_lam_temp[0]) / lamrange[0]) * c
-    # start = [4000, 300]
-    # goodpixels = np.argwhere(np.logical_and(np.exp(wave) > 4800, np.exp(wave) <
-    #                                     5800 )).T[0]
-    # pp = ppxf(stars_templates, galaxy, noise, velscale, start,
-    #           plot=True, moments=4, degree=8, mdegree=-1, vsyst=dv,
-    #           lam=np.exp(wave), clean=False, goodpixels=goodpixels)
-    # plt.show()
-    # print(pp)
-
-
 if __name__ == "__main__":
     # example_two_ssps()
     example_two_csps(redo=False, sn=25)
