@@ -17,13 +17,10 @@ import context
 import numpy as np
 import pymc3 as pm
 import matplotlib.pyplot as plt
-from specutils.io.read_fits import read_fits_spectrum1d
-from scipy.ndimage.filters import gaussian_filter1d
 from scipy.stats import multivariate_normal
 
-from ppxf.ppxf_util import log_rebin
 from ppxf.miles_util import Miles
-from der_snr import DER_SNR
+
 
 class MilesCategorical():
     """ Uses Capellari's program to load templates. """
