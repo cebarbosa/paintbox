@@ -43,21 +43,20 @@ def fit_simulations(simclass, sigma, sn=300, redo=False):
             sim = pickle.load(f)
         dbname = os.path.join(fit_dir, simfile.replace(".pkl", ".db"))
         if os.path.exists(dbname) and not redo:
-            plot_tmscp(templates, dbname, sim, sn)
             continue
         flux = sim["spec"]
         noise = np.random.normal(0, np.median(flux) / sn, size=len(flux))
         fsim = flux + noise
         tmcsp = TMCSP(templates.wave, fsim, templates.templates)
-        tmcsp.NUTS_sampling(nsamp=1000, tune=2000)
+        tmcsp.NUTS_sampling()
         tmcsp.save(dbname)
+        plot_tmscp(templates, dbname, sim, sn)
     return
 
 def plot_tmscp(templates, dbname, sim, sn):
     Wsim = sim["weights"]
     with open(dbname, 'rb') as buff:
-        mcmc = pickle.load(buff)
-    trace = mcmc["trace"]
+        trace = pickle.load(buff)
     ws = trace["w"]
     W3D = np.zeros((ws.shape[0], templates.ages2D.shape[0],
                     templates.ages2D.shape[1]))
