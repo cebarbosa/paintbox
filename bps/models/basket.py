@@ -18,10 +18,12 @@ import pickle
 import numpy as np
 from scipy.special import legendre
 import pymc3 as pm
+import theano.tensor as T
 import matplotlib.pyplot as plt
 
-class TMCSP():
-    def __init__(self, wave, flux, templates, adegree=None):
+class NonParametric():
+    def __init__(self, wave, flux, templates, adegree=None, mdegree=None,
+                 reddening=False):
         """ Model CSP with bayesian model. """
         self.wave = wave
         self.flux = flux
@@ -75,6 +77,44 @@ class TMCSP():
         with open(dbname, 'wb') as f:
             pickle.dump(d, f)
         return
+
+class Parametric():
+    def __init__(self, wave, flux, templates, adegree=None, mdegree=None,
+                 reddening=False):
+        with pm.Model() as hierarchical_model:
+            # Hyperpriors
+            mu_age = pm.Normal("Age", mu=9, sd=1)
+            mu_metal = pm.Normal("Metal", mu=0, sd=0.1)
+            mu_alpha = pm.Normal("Alpha", mu=0.2, sd=.1)
+            sigma_age = pm.Exponential('SAge', lam=1)
+            sigma_metal = pm.Exponential('SMetal', lam=.1)
+            sigma_alpha = pm.Exponential('SAlpha', lam=.1)
+            ages = pm.Normal("age", mu=mu_age, sd=sigma_age, shape=N)
+            metals = pm.Normal("metal", mu=mu_metal, sd=sigma_metal, shape=N)
+            alphas = pm.Normal("alpha", mu=mu_alpha, sd=sigma_alpha, shape=N)
+            eps = pm.Exponential("eps", lam=1, shape=N)
+            w = [pm.Deterministic("w_{}".format(i), \
+                                  T.exp(-0.5 * T.pow(
+                                      (metals[i] - ssps.metals1D) / sigma_metal,
+                                      2)) *
+                                  T.exp(-0.5 * T.pow(
+                                      (ages[i] - ssps.ages1D) / sigma_age, 2)) *
+                                  T.exp(
+                                      -0.5 * T.pow((alphas[i] - ssps.alphas1D) /
+                                                   sigma_alpha, 2))) for i in
+                 range(N)]
+            bestfit = [pm.math.dot(w[i].T / T.sum(w[i]), ssps.flux) for i in
+                       range(N)]
+            like = [
+                pm.Cauchy('like_{}'.format(i), alpha=bestfit[i], beta=eps[i],
+                          observed=obs[i]) for i in range(N)]
+        with hierarchical_model:
+            trace = pm.sample(500, tune=500)
+        vars = ["Age", "Metal", "Alpha", "SAge", "SMetal", "SAlpha", "age",
+                "metal", "alpha", "eps"]
+        d = dict([(v, trace[v]) for v in vars])
+        with open(dbname, 'wb') as f:
+            pickle.dump(d, f)
 
 if __name__ == "__main__":
     pass

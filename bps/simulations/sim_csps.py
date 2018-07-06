@@ -22,7 +22,7 @@ from spectres import spectres
 import matplotlib.pyplot as plt
 
 from misc import array_from_header
-from models.tmcsp import tmcsp
+from models.basket import tmcsp
 
 class Miles():
     """ Read templates files and prepare them for the fitting. """

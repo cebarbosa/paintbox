@@ -15,12 +15,10 @@ import pickle
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import context
-from models.tmcsp import TMCSP
+from models.basket import NonParametric
 from make_simulated_csps import Templates
-from der_snr import DER_SNR
 
 def fit_simulations(simclass, sigma, sn=300, redo=False):
     """ Fitting simulations at different levels using TMCSP"""
@@ -42,19 +40,20 @@ def fit_simulations(simclass, sigma, sn=300, redo=False):
         print("Simulation {}/{}".format(i+1, len(simfiles)))
         with open(os.path.join(sim_dir, simfile)) as f:
             sim = pickle.load(f)
+
         dbname = os.path.join(fit_dir, simfile.replace(".pkl", ".db"))
         if os.path.exists(dbname) and not redo:
             continue
         flux = sim["spec"]
         noise = np.random.normal(0, np.median(flux) / sn, size=len(flux))
         fsim = flux + noise
-        tmcsp = TMCSP(templates.wave, fsim, templates.templates)
+        tmcsp = NonParametric(templates.wave, fsim, templates.templates)
         tmcsp.NUTS_sampling()
         tmcsp.save(dbname)
-        plot_tmscp(templates, dbname, sim, sn)
+        plot_tmscp(templates, dbname, sim, sn, fsim)
     return
 
-def plot_tmscp(templates, dbname, sim, sn):
+def plot_tmscp(templates, dbname, sim, sn, fsim):
     Wsim = sim["weights"]
     with open(dbname, 'rb') as buff:
         trace = pickle.load(buff)
@@ -71,7 +70,7 @@ def plot_tmscp(templates, dbname, sim, sn):
     fig = plt.figure(1, figsize=(6.97, 6))
     ax1 = plt.subplot2grid((3, 2), (0, 0), colspan=2)
     ax1.minorticks_on()
-    ax1.plot(templates.wave, sim["spec"], label="Model (S/N={})".format(sn))
+    ax1.plot(templates.wave, fsim, label="Model (S/N={})".format(sn))
     ax1.plot(templates.wave, weights.reshape(-1).dot(templates.templates),
              label="Best fit")
     ax1.set_xlabel("$\lambda$ (\AA)")
@@ -132,4 +131,4 @@ def plot_tmscp(templates, dbname, sim, sn):
     ############################################################################
 
 if __name__ == "__main__":
-    fit_simulations("unimodal", 300, sn=30)
+    fit_simulations("unimodal", 300, sn=300)

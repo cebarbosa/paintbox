@@ -21,7 +21,7 @@ from spectres import spectres
 import matplotlib.pyplot as plt
 
 from misc import array_from_header
-from models.tmcsp import tmcsp
+from models.basket import tmcsp
 
 def make_mock_spectra(outdir, nsim=10, nbursts=3, sigma=350, outw1=4700,
                       outw2=9100,
