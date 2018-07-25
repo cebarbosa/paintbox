@@ -144,8 +144,6 @@ def simulate_bimodal_csps(templates, logdir, redo=False, nsim=100):
             pickle.dump(log, f)
     return
 
-
-
 def csp_modeling2(obs, templates, dbname, redo=False):
     """ Model a CSP with bayesian model. """
     if os.path.exists(dbname) and not redo:
