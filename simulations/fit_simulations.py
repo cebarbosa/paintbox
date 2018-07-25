@@ -17,8 +17,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import context
-from models.basket import NonParametric
+from bsf.bsf import NonParametric
 from make_simulated_csps import Templates
+
 
 def fit_simulations(simclass, sigma, sn=300, redo=False):
     """ Fitting simulations at different levels using TMCSP"""

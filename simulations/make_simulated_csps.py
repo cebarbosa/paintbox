@@ -15,13 +15,12 @@ import pickle
 import numpy as np
 import pymc3 as pm
 import theano.tensor as T
-import matplotlib.pyplot as plt
 from scipy import stats
 from specutils.io.read_fits import read_fits_spectrum1d
 from scipy.ndimage.filters import gaussian_filter1d
 from spectres import spectres
 
-import context
+import simulations.context
 import ppxf.ppxf_util as util
 
 class Templates():
@@ -30,7 +29,7 @@ class Templates():
         """ Load Miles templates for simulations. """
         self.velscale = velscale
         self.sigma = sigma
-        miles_path = os.path.join(context.basedir, "ppxf/miles_models")
+        miles_path = os.path.join(simulations.context.basedir, "ppxf/miles_models")
         # Search for spectra and their properties
         fitsfiles = [_ for _ in os.listdir(miles_path) if _.endswith(".fits")]
         # Define the different values of metallicities and ages of templates
@@ -176,8 +175,8 @@ def make_unimodal_simulations():
     metallicites. """
     sigma = 300
     velscale = sigma / 10
-    nsim = 100
-    logdir = os.path.join(context.workdir, "simulations",
+    nsim = 101
+    logdir = os.path.join(simulations.context.workdir, "simulations",
                           "unimodal_sigma{}".format(sigma))
     if not os.path.exists(logdir):
         os.mkdir(logdir)

@@ -16,17 +16,16 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-import context
-from models.basket import NonParametric
-from make_simulated_csps import Templates
+import simulations.context
+
 
 def plot_unimodal_simulations(sigma, sn):
     """ Make comparison of simulated values with those obtained with TMCSP. """
-    sim_dir = os.path.join(context.workdir, "simulations",
+    sim_dir = os.path.join(simulations.context.workdir, "simulations",
                           "unimodal_sigma{}".format(sigma))
-    fit_dir = os.path.join(context.workdir, "fitting",
+    fit_dir = os.path.join(simulations.context.workdir, "fitting",
                            "unimodal_sigma{}_sn{}".format(sigma, sn))
-    output = os.path.join(context.plots_dir,
+    output = os.path.join(simulations.context.plots_dir,
                           "sim_unimodal_sigma{}_sn{}.png".format(sigma, sn))
     ############################################################################
     # Loading templates
