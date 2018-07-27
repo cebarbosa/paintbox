@@ -16,9 +16,9 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-import context
+from simulations import context
 from bsf.bsf import NonParametric
-from make_simulated_csps import Templates
+from simulations.make_simulated_csps import Templates
 
 
 def fit_simulations(simclass, sigma, sn=300, redo=False):
@@ -32,14 +32,15 @@ def fit_simulations(simclass, sigma, sn=300, redo=False):
     ############################################################################
     # Loading templates
     templates_file = os.path.join(sim_dir, "templates.pkl")
-    with open(templates_file) as f:
+    with open(templates_file, "rb") as f:
         templates = pickle.load(f)
     ############################################################################
     simfiles = [_ for _ in sorted(os.listdir(sim_dir)) if _.endswith(".pkl")
                    and _.startswith("sim")]
     for i, simfile in enumerate(simfiles):
         print("Simulation {}/{}".format(i+1, len(simfiles)))
-        with open(os.path.join(sim_dir, simfile)) as f:
+        print(os.path.exists(os.path.join(sim_dir, simfile)))
+        with open(os.path.join(sim_dir, simfile), "rb") as f:
             sim = pickle.load(f)
 
         dbname = os.path.join(fit_dir, simfile.replace(".pkl", ".db"))

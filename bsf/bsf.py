@@ -12,7 +12,8 @@ Populations.
 
 from __future__ import print_function, division
 
-import os
+from builtins import range
+from builtins import object
 import pickle
 
 import numpy as np
@@ -21,7 +22,7 @@ import pymc3 as pm
 import theano.tensor as T
 import matplotlib.pyplot as plt
 
-class NonParametric():
+class NonParametric(object):
     def __init__(self, wave, flux, templates, adegree=None, mdegree=None,
                  reddening=False):
         """ Model CSP with bayesian model. """
@@ -78,7 +79,7 @@ class NonParametric():
             pickle.dump(d, f)
         return
 
-class Parametric():
+class Parametric(object):
     def __init__(self, wave, flux, templates, adegree=None, mdegree=None,
                  reddening=False):
         with pm.Model() as hierarchical_model:

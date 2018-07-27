@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-""" 
+"""
 
 Created on 05/03/18
 
@@ -8,6 +7,7 @@ Author : Carlos Eduardo Barbosa
 Determination of LOSVD of a given spectrum similarly to pPXF.
 
 """
+from __future__ import print_function, division, absolute_import
 
 import os
 import pickle
@@ -19,9 +19,9 @@ from scipy import stats
 from specutils.io.read_fits import read_fits_spectrum1d
 from scipy.ndimage.filters import gaussian_filter1d
 from spectres import spectres
-
-import simulations.context
 import ppxf.ppxf_util as util
+
+from simulations import context
 
 class Templates():
     def __init__(self, velscale, sigma, _noread=False):
@@ -29,7 +29,7 @@ class Templates():
         """ Load Miles templates for simulations. """
         self.velscale = velscale
         self.sigma = sigma
-        miles_path = os.path.join(simulations.context.basedir, "ppxf/miles_models")
+        miles_path = os.path.join(context.basedir, "miles_models")
         # Search for spectra and their properties
         fitsfiles = [_ for _ in os.listdir(miles_path) if _.endswith(".fits")]
         # Define the different values of metallicities and ages of templates
@@ -92,7 +92,7 @@ def simulate_unimodal_distribution(templates, logdir, redo=False, nsim=100):
                "metal_std" : Z_std, "sfh" : sfh,
                "metal_dist" : metal_dist, "weights" : weights,
                "spec" : spec}
-        with open(logfile, "w") as f:
+        with open(logfile, "wb") as f:
             pickle.dump(log, f)
     return
 
@@ -140,7 +140,7 @@ def simulate_bimodal_csps(templates, logdir, redo=False, nsim=100):
                    std_metal_young, "sfh_old" : sfh2,
                "metal_dist_young" : metal_dist2 , "spec_young" : pop2,
                "w_old" : w1, "w_young": w2, "sim_spec" : model}
-        with open(logfile, "w") as f:
+        with open(logfile, "wb") as f:
             pickle.dump(log, f)
     return
 
@@ -173,18 +173,18 @@ def make_unimodal_simulations():
     metallicites. """
     sigma = 300
     velscale = sigma / 10
-    nsim = 101
-    logdir = os.path.join(simulations.context.workdir, "simulations",
+    nsim = 102
+    logdir = os.path.join(context.workdir, "simulations",
                           "unimodal_sigma{}".format(sigma))
     if not os.path.exists(logdir):
         os.mkdir(logdir)
     templates_file = os.path.join(logdir, "templates.pkl")
     if os.path.exists(templates_file):
-        with open(templates_file) as f:
+        with open(templates_file, "rb") as f:
             templates = pickle.load(f)
     else:
         templates = Templates(velscale=velscale, sigma=sigma, _noread=False)
-        with open(templates_file, "w") as f:
+        with open(templates_file, "wb") as f:
             pickle.dump(templates, f)
     simulate_unimodal_distribution(templates, logdir, redo=False, nsim=nsim)
 
