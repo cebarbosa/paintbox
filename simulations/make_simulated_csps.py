@@ -173,9 +173,9 @@ def make_unimodal_simulations():
     metallicites. """
     sigma = 300
     velscale = sigma / 10
-    nsim = 102
+    nsim = 100
     logdir = os.path.join(context.workdir, "simulations",
-                          "unimodal_sigma{}".format(sigma))
+                          "unimodal_sigma{}".format(sigma), "data")
     if not os.path.exists(logdir):
         os.mkdir(logdir)
     templates_file = os.path.join(logdir, "templates.pkl")

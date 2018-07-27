@@ -23,10 +23,10 @@ from simulations.make_simulated_csps import Templates
 
 def fit_simulations(simclass, sigma, sn=300, redo=False):
     """ Fitting simulations at different levels using TMCSP"""
-    sim_dir = os.path.join(context.workdir, "simulations",
+    base_dir = os.path.join(context.workdir, "simulations",
                           "{}_sigma{}".format(simclass, sigma))
-    fit_dir = os.path.join(context.workdir, "fitting",
-                           "{}_sigma{}_sn{}".format(simclass, sigma, sn))
+    sim_dir = os.path.join(base_dir, "data")
+    fit_dir = os.path.join(base_dir, "npfit_sn{}".format(sn))
     if not os.path.exists(fit_dir):
         os.mkdir(fit_dir)
     ############################################################################
@@ -39,7 +39,6 @@ def fit_simulations(simclass, sigma, sn=300, redo=False):
                    and _.startswith("sim")]
     for i, simfile in enumerate(simfiles):
         print("Simulation {}/{}".format(i+1, len(simfiles)))
-        print(os.path.exists(os.path.join(sim_dir, simfile)))
         with open(os.path.join(sim_dir, simfile), "rb") as f:
             sim = pickle.load(f)
 
