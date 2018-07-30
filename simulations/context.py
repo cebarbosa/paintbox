@@ -16,7 +16,7 @@ if getpass.getuser() == "kadu":
     basedir = os.path.dirname(os.path.abspath(__file__))
 else:
     workdir = "/scratch/5386553/bsf"
-    basedir = "/scratch/5386553/repos/bsf/bsf"
+    basedir = "/scratch/5386553/repos/bsf"
 sys.path.insert(0, basedir)
 plots_dir = os.path.join(workdir, "plots")
 dirs = [plots_dir]

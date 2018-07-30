@@ -8,7 +8,7 @@ Author : Carlos Eduardo Barbosa
 Plot results of the simulations
 
 """
-from __future__ import print_function, division
+from __future__ import print_function, division, absolute_import
 
 import os
 import pickle
@@ -17,14 +17,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import context
-from make_simulated_csps import Templates
+from simulations.make_simulated_csps import Templates
 
 def plot_unimodal_simulations(sigma, sn):
     """ Make comparison of simulated values with those obtained with TMCSP. """
-    sim_dir = os.path.join(context.workdir, "simulations",
+    base_dir =  os.path.join(context.workdir, "simulations",
                           "unimodal_sigma{}".format(sigma))
-    fit_dir = os.path.join(context.workdir, "fitting",
-                           "unimodal_sigma{}_sn{}".format(sigma, sn))
+    sim_dir = os.path.join(base_dir, "data")
+    fit_dir = os.path.join(base_dir, "npfit_sn{}".format(sn))
     output = os.path.join(context.plots_dir,
                           "sim_unimodal_sigma{}_sn{}.png".format(sigma, sn))
     ############################################################################

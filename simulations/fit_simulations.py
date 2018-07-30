@@ -8,7 +8,7 @@ Author : Carlos Eduardo Barbosa
 Fit the simulated spectra using basket routines.
 
 """
-from __future__ import print_function, division
+from __future__ import print_function, division, absolute_import
 
 import os
 import pickle
@@ -16,7 +16,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from simulations import context
+import context
 from bsf.bsf import NonParametric
 from simulations.make_simulated_csps import Templates
 
