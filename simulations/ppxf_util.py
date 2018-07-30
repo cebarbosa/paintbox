@@ -29,7 +29,7 @@ import numpy as np
 from scipy import fftpack
 import matplotlib.pyplot as plt
 
-from .ppxf import losvd_rfft, rebin
+from ppxf import losvd_rfft, rebin
 
 ###############################################################################
 #

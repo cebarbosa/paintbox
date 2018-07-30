@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from numpy.polynomial import legendre, hermite
 from scipy import optimize, linalg, special, fftpack
 
-from . import capfit
+import capfit
 
 ################################################################################
 

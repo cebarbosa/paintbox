@@ -18,10 +18,10 @@ import theano.tensor as T
 from scipy import stats
 from specutils.io.read_fits import read_fits_spectrum1d
 from scipy.ndimage.filters import gaussian_filter1d
-from spectres import spectres
-import ppxf.ppxf_util as util
+import ppxf_util as util
 
-from simulations import context
+import context
+from spectral_resampling import spectres
 
 class Templates():
     def __init__(self, velscale, sigma, _noread=False):
