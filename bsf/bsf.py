@@ -32,8 +32,6 @@ class NPFit(object):
         self.templates = templates
         self.ntemplates = len(templates)
         self.adegree = adegree
-        print(self.adegree)
-        raw_input(404)
         self.reddening = reddening
         #######################################################################
         # Preparing array for redenning
