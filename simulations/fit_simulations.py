@@ -48,7 +48,7 @@ def fit_simulations(simclass, sigma, sn=300, redo=False):
         flux = sim["spec"]
         noise = np.random.normal(0, np.median(flux) / sn, size=len(flux))
         fsim = flux + noise
-        tmcsp = NPFit(templates.wave, fsim, templates.templates)
+        tmcsp = NPFit(templates.wave, fsim, templates.templates, reddening=True)
         sample_kwargs = {"tune":1000}
         tmcsp.NUTS_sampling(sample_kwargs=sample_kwargs)
         tmcsp.save(dbname)
