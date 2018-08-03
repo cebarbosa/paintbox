@@ -22,7 +22,7 @@ import pymc3 as pm
 import theano.tensor as T
 import matplotlib.pyplot as plt
 
-class NonParametric(object):
+class NPFit(object):
     def __init__(self, wave, flux, templates, adegree=None, mdegree=None,
                  reddening=False):
         """ Model CSP with bayesian model. """
@@ -64,11 +64,13 @@ class NonParametric(object):
         return f0 * (math.dot(w.T, self.templates) +
                      math.dot(wpoly.T, self.apoly))
 
-    def NUTS_sampling(self, nsamp=2000, tune=1000, target_accept=0.9):
+    def NUTS_sampling(self, nsamp=1000, target_accept=0.8, sample_kwargs=None):
         """ Sampling the model using the NUTS method. """
         with self.model:
-            self.trace = pm.sample(nsamp, tune=tune,
-                                   nuts_kwargs={"target_accept": target_accept})
+            self.trace = pm.sample(nsamp,
+                                   nuts_kwargs={"target_accept":
+                                                    target_accept},
+                                   **sample_kwargs)
 
     def save(self, dbname):
         """ Save trace."""
@@ -79,7 +81,7 @@ class NonParametric(object):
             pickle.dump(d, f)
         return
 
-class Parametric(object):
+class PFit(object):
     def __init__(self, wave, flux, templates, adegree=None, mdegree=None,
                  reddening=False):
         with pm.Model() as hierarchical_model:

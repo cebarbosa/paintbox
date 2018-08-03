@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import context
-from bsf.bsf import NonParametric
+from bsf.bsf import NPFit
 from simulations.make_simulated_csps import Templates
 
 
@@ -48,8 +48,9 @@ def fit_simulations(simclass, sigma, sn=300, redo=False):
         flux = sim["spec"]
         noise = np.random.normal(0, np.median(flux) / sn, size=len(flux))
         fsim = flux + noise
-        tmcsp = NonParametric(templates.wave, fsim, templates.templates)
-        tmcsp.NUTS_sampling()
+        tmcsp = NPFit(templates.wave, fsim, templates.templates)
+        sample_kwargs = {"tune":1000}
+        tmcsp.NUTS_sampling(sample_kwargs=sample_kwargs)
         tmcsp.save(dbname)
         plot_tmscp(templates, dbname, sim, sn, fsim)
     return
