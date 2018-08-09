@@ -89,7 +89,7 @@ class BSF(object):
         """ Build a parametric model for the fitting. """
         self.model = pm.Model()
         with self.model:
-            flux0 = pm.Normal("f0", mu=1, sd=5)
+            self.flux0 = pm.Normal("f0", mu=1, sd=5)
             mus, stds = [], []
             wps = [] # Partial weights
             for i, p in enumerate(self.params.colnames):
@@ -107,41 +107,38 @@ class BSF(object):
             ####################################################################
             # Handling Reddening law
             if self.reddening is None:
-                extinction = pm.math.ones_like(flux0)
+                extinction = pm.math.ones_like(self.flux0)
             else:
                 Rv = pm.Normal("Rv", mu=3.1, sd=1)
                 ebv = pm.Exponential("ebv", lam=2)
                 extinction = T.pow(10, -0.4 * (self.kappa + Rv) * ebv)
             ####################################################################
-            bestfit =  flux0 * extinction * \
+            bestfit =  self.flux0 * extinction * \
                        (pm.math.dot(weights.T / T.sum(weights), self.templates))
             eps = pm.Exponential("eps", lam=1)
             self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=eps, observed=self.flux)
 
 
-    def NUTS_sampling(self, nsamp=1000, target_accept=0.8, sample_kwargs=None):
-        """ Sampling the model using the NUTS method. """
-        if sample_kwargs is None:
-            sample_kwargs = {}
-        with self.model:
-            self.trace = pm.sample(nsamp,
-                                   nuts_kwargs={"target_accept": target_accept},
-                                   **sample_kwargs)
-
-    def save(self, dbname):
-        """ Save trace."""
-        trace = self.trace
-        vars = ["f0", "w", "sigma", "wpoly"]
-        d = dict([(v, trace[v]) for v in vars if v in trace.__dict__.keys()])
-        with open(dbname, 'wb') as f:
-            pickle.dump(d, f)
-        return
-
-class PFit(object):
-    def __init__(self, wave, flux, templates, params, adegree=None,
-                 mdegree=None, reddening=False):
-        pass
+#     def NUTS_sampling(self, nsamp=1000, target_accept=0.8, sample_kwargs=None):
+#         """ Sampling the model using the NUTS method. """
+#         if sample_kwargs is None:
+#             sample_kwargs = {}
+#         with self.model:
+#             self.trace = pm.sample(nsamp,
+#                                    nuts_kwargs={"target_accept": target_accept},
+#                                    **sample_kwargs)
+#
+#     def save(self, dbname):
+#         """ Save trace."""
+#         with open(dbname, 'wb') as f:
+#             pickle.dump(self.trace, f)
+#         return
+#
+# class PFit(object):
+#     def __init__(self, wave, flux, templates, params, adegree=None,
+#                  mdegree=None, reddening=False):
+#         pass
 #         with pm.Model() as hierarchical_model:
 #             # Hyperpriors
 #             mu_age = pm.Normal("Age", mu=9, sd=1)
