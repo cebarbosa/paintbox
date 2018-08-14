@@ -19,13 +19,14 @@ import pickle
 import numpy as np
 from scipy.special import legendre
 import pymc3 as pm
+import theano
 import theano.tensor as T
 import matplotlib.pyplot as plt
 import astropy.units as u
 
 class BSF(object):
     def __init__(self, wave, flux, templates, adegree=None, params=None,
-                 reddening=None):
+                 reddening=True, statmodel=None):
         """ Model CSP with bayesian model. """
         self.wave = wave
         self.flux = flux
@@ -34,6 +35,15 @@ class BSF(object):
         self.adegree = adegree
         self.reddening = reddening
         self.params = params
+        self.statmodel = "npfit" if statmodel is None else statmodel
+        self.models = {"npfit": self.build_nonparametric_model,
+                       "pfit": self.build_parametric_model,
+                       "nssps": self.build_nssps_model}
+        self.plotfunc = {"npfit": self.plot_nonparametric_model,
+                       "pfit": self.plot_parametric_model,
+                       "nssps": self.plot_nssps_model}
+        build = self.models.get(self.statmodel)
+        self.plot = self.plotfunc.get(self.statmodel)
         #######################################################################
         # Preparing array for redenning
         if not hasattr(self.wave, "_unit"):
@@ -54,6 +64,7 @@ class BSF(object):
                 self.apoly[i] = legendre(i)(_)
         else:
             self.apoly = np.zeros(1)
+        build()
 
     def build_nonparametric_model(self):
         """ Build a non-parametric model for the fitting. """
@@ -106,12 +117,12 @@ class BSF(object):
             csp = pm.math.dot(weights.T / T.sum(weights), self.templates)
             ####################################################################
             # Handling Reddening law
-            if self.reddening is None:
-                extinction = pm.math.ones_like(self.flux0)
-            else:
+            if self.reddening:
                 Rv = pm.Normal("Rv", mu=3.1, sd=1)
                 ebv = pm.Exponential("ebv", lam=2)
                 extinction = T.pow(10, -0.4 * (self.kappa + Rv) * ebv)
+            else:
+                extinction = pm.math.ones_like(self.flux0)
             ####################################################################
             bestfit =  self.flux0 * extinction * \
                        (pm.math.dot(weights.T / T.sum(weights), self.templates))
@@ -119,60 +130,58 @@ class BSF(object):
             self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=eps, observed=self.flux)
 
+    def build_nssps_model(self, N=10):
+        """ Build a model assuming a number of SSPs. """
+        idxs, values = [], []
+        nparams = len(self.params.colnames)
+        for par in self.params.colnames:
+            vals = np.array(np.unique(self.params[par]))
+            dict_ = dict([(x,i) for i,x in enumerate(vals)])
+            idxs.append(dict_)
+            values.append(vals)
+        shape = [len(_) for _ in idxs] + [len(self.templates[0])]
+        templates = np.zeros(shape)
+        for j, p in enumerate(np.array(self.params)):
+            idx = [idxs[i][v] for i,v in enumerate(p)] + \
+                  [np.arange(len(self.templates[0]))]
+            templates[tuple(idx)] = self.templates[j]
+        self.templates = templates
+        self.model = pm.Model()
+        with self.model:
+            w = pm.Dirichlet("w", np.ones(N))
+            categs = []
+            for i in range(nparams):
+                categs.append(pm.Categorical("{}_idx".format(
+                              self.params.colnames[i]),
+                              np.ones_like(values[i]) / len(values[i]),
+                    shape=N))
+            ssp =  theano.shared(self.templates)[categs[0], categs[1],
+                                                categs[2], categs[3],
+                                                categs[4], :]
+            ####################################################################
+            # Handling Reddening law
+            if self.reddening:
+                Rv = pm.Normal("Rv", mu=3.1, sd=1)
+                ebv = pm.Exponential("ebv", lam=2)
+                extinction = T.pow(10, -0.4 * (self.kappa + Rv) * ebv)
+            else:
+                extinction = pm.math.ones_like(self.flux0)
+            ###################################################################
+            self.flux0 = pm.Normal("f0", mu=1, sd=5)
+            bestfit =  self.flux0 * extinction * T.dot(w.T, ssp)
+            eps = pm.Exponential("eps", lam=1)
+            self.residuals = pm.Cauchy("resid", alpha=bestfit, beta=eps,
+                                observed=self.flux)
 
-#     def NUTS_sampling(self, nsamp=1000, target_accept=0.8, sample_kwargs=None):
-#         """ Sampling the model using the NUTS method. """
-#         if sample_kwargs is None:
-#             sample_kwargs = {}
-#         with self.model:
-#             self.trace = pm.sample(nsamp,
-#                                    nuts_kwargs={"target_accept": target_accept},
-#                                    **sample_kwargs)
-#
-#     def save(self, dbname):
-#         """ Save trace."""
-#         with open(dbname, 'wb') as f:
-#             pickle.dump(self.trace, f)
-#         return
-#
-# class PFit(object):
-#     def __init__(self, wave, flux, templates, params, adegree=None,
-#                  mdegree=None, reddening=False):
-#         pass
-#         with pm.Model() as hierarchical_model:
-#             # Hyperpriors
-#             mu_age = pm.Normal("Age", mu=9, sd=1)
-#             mu_metal = pm.Normal("Metal", mu=0, sd=0.1)
-#             mu_alpha = pm.Normal("Alpha", mu=0.2, sd=.1)
-#             sigma_age = pm.Exponential('SAge', lam=1)
-#             sigma_metal = pm.Exponential('SMetal', lam=.1)
-#             sigma_alpha = pm.Exponential('SAlpha', lam=.1)
-#             ages = pm.Normal("age", mu=mu_age, sd=sigma_age, shape=N)
-#             metals = pm.Normal("metal", mu=mu_metal, sd=sigma_metal, shape=N)
-#             alphas = pm.Normal("alpha", mu=mu_alpha, sd=sigma_alpha, shape=N)
-#             eps = pm.Exponential("eps", lam=1, shape=N)
-#             w = [pm.Deterministic("w_{}".format(i), \
-#                                   T.exp(-0.5 * T.pow(
-#                                       (metals[i] - ssps.metals1D) / sigma_metal,
-#                                       2)) *
-#                                   T.exp(-0.5 * T.pow(
-#                                       (ages[i] - ssps.ages1D) / sigma_age, 2)) *
-#                                   T.exp(
-#                                       -0.5 * T.pow((alphas[i] - ssps.alphas1D) /
-#                                                    sigma_alpha, 2))) for i in
-#                  range(N)]
-#             bestfit = [pm.math.dot(w[i].T / T.sum(w[i]), ssps.flux) for i in
-#                        range(N)]
-#             like = [
-#                 pm.Cauchy('like_{}'.format(i), alpha=bestfit[i], beta=eps[i],
-#                           observed=obs[i]) for i in range(N)]
-#         with hierarchical_model:
-#             trace = pm.sample(500, tune=500)
-#         vars = ["Age", "Metal", "Alpha", "SAge", "SMetal", "SAlpha", "age",
-#                 "metal", "alpha", "eps"]
-#         d = dict([(v, trace[v]) for v in vars])
-#         with open(dbname, 'wb') as f:
-#             pickle.dump(d, f)
+    def plot_nssps_model(self):
+        """ Produces plot for model with N SSPs."""
+        print("Hi")
+
+    def plot_nonparametric_model(self):
+        pass
+
+    def plot_parametric_model(self):
+        pass
 
 if __name__ == "__main__":
     pass
