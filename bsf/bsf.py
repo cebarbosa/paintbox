@@ -14,7 +14,6 @@ from __future__ import print_function, division
 
 from builtins import range
 from builtins import object
-import pickle
 
 import numpy as np
 from scipy.special import legendre
@@ -132,17 +131,18 @@ class BSF(object):
 
     def build_nssps_model(self, N=10):
         """ Build a model assuming a number of SSPs. """
-        idxs, values = [], []
+        self.Nssps = N
+        self._idxs, self._values = [], []
         nparams = len(self.params.colnames)
         for par in self.params.colnames:
             vals = np.array(np.unique(self.params[par]))
             dict_ = dict([(x,i) for i,x in enumerate(vals)])
-            idxs.append(dict_)
-            values.append(vals)
-        shape = [len(_) for _ in idxs] + [len(self.templates[0])]
+            self._idxs.append(dict_)
+            self._values.append(vals)
+        shape = [len(_) for _ in self._idxs] + [len(self.templates[0])]
         templates = np.zeros(shape)
         for j, p in enumerate(np.array(self.params)):
-            idx = [idxs[i][v] for i,v in enumerate(p)] + \
+            idx = [self._idxs[i][v] for i,v in enumerate(p)] + \
                   [np.arange(len(self.templates[0]))]
             templates[tuple(idx)] = self.templates[j]
         self.templates = templates
@@ -153,7 +153,7 @@ class BSF(object):
             for i in range(nparams):
                 categs.append(pm.Categorical("{}_idx".format(
                               self.params.colnames[i]),
-                              np.ones_like(values[i]) / len(values[i]),
+                              np.ones_like(self._values[i]) / len(self._values[i]),
                     shape=N))
             ssp =  theano.shared(self.templates)[categs[0], categs[1],
                                                 categs[2], categs[3],
@@ -175,7 +175,44 @@ class BSF(object):
 
     def plot_nssps_model(self):
         """ Produces plot for model with N SSPs."""
-        print("Hi")
+        def calc_bins(vals):
+            """ Returns the bins to be used for a discrete set of parameters."""
+            delta = 0.49 * np.diff(vals).min()
+            return np.unique(np.column_stack((vals - delta, vals + delta)))
+        npars = len(self.params.colnames)
+        with self.model:
+            w = self.trace["w"]
+            fig = plt.figure()
+            for i, pi in enumerate(self.params.colnames):
+                for j, pj in enumerate(self.params.colnames):
+                    if i < j:
+                        continue
+                    ax = plt.subplot2grid((npars, npars),
+                                          (i,j))
+                    tracei = self.trace["{}_idx".format(pi)]
+                    x = self._values[i][tracei].flatten()
+                    chains = tracei.shape[0]
+                    binsx = calc_bins(self._values[i])
+                    if i == j:
+                        ax.hist(x, weights=w.flatten() / chains, bins=binsx)
+                        ax.set_xlabel(pi)
+                        ax.set_xlim(binsx[0], binsx[-1])
+                    elif i > j:
+                        tracej = self.trace["{}_idx".format(pj)]
+                        y = self._values[j][tracej].flatten()
+                        binsy = calc_bins(self._values[j])
+                        H, xedges, yedges = np.histogram2d(x, y,
+                                            weights=w.flatten() / chains,
+                                            bins=(binsx, binsy))
+                        Y, X = np.meshgrid(xedges, yedges)
+                        ax.pcolormesh(X.T, Y.T, H, cmap="Blues")
+                        if i == npars - 1:
+                            ax.set_xlabel(pj)
+                        if j == 0:
+                            ax.set_ylabel(pi)
+
+            plt.show()
+
 
     def plot_nonparametric_model(self):
         pass
