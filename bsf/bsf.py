@@ -38,11 +38,11 @@ class BSF(object):
         self.models = {"npfit": self.build_nonparametric_model,
                        "pfit": self.build_parametric_model,
                        "nssps": self.build_nssps_model}
-        self.plotfunc = {"npfit": self.plot_nonparametric_model,
-                       "pfit": self.plot_parametric_model,
-                       "nssps": self.plot_nssps_model}
+        self.plotcorner = {"npfit": self.plot_corner_nonparametric,
+                       "pfit": self.plot_corner_parametric,
+                       "nssps": self.plot_corner_nssps}
         build = self.models.get(self.statmodel)
-        self.plot = self.plotfunc.get(self.statmodel)
+        self.plot_corner = self.plotcorner.get(self.statmodel)
         #######################################################################
         # Preparing array for redenning
         if not hasattr(self.wave, "_unit"):
@@ -173,30 +173,35 @@ class BSF(object):
             self.residuals = pm.Cauchy("resid", alpha=bestfit, beta=eps,
                                 observed=self.flux)
 
-    def plot_nssps_model(self):
+    def plot_corner_nssps(self, labels=None):
         """ Produces plot for model with N SSPs."""
         def calc_bins(vals):
             """ Returns the bins to be used for a discrete set of parameters."""
-            delta = 0.49 * np.diff(vals).min()
+            delta = 0.48 * np.diff(vals).min()
             return np.unique(np.column_stack((vals - delta, vals + delta)))
         npars = len(self.params.colnames)
+        if labels is None:
+            labels = self.params.colnames
         with self.model:
             w = self.trace["w"]
-            fig = plt.figure()
+            fig = plt.figure(figsize=(3.32153, 3.32153))
             for i, pi in enumerate(self.params.colnames):
                 for j, pj in enumerate(self.params.colnames):
                     if i < j:
                         continue
                     ax = plt.subplot2grid((npars, npars),
                                           (i,j))
+                    ax.tick_params(right=True, top=True, axis="both",
+                                   direction='in', which="both")
+                    ax.minorticks_on()
                     tracei = self.trace["{}_idx".format(pi)]
                     x = self._values[i][tracei].flatten()
                     chains = tracei.shape[0]
                     binsx = calc_bins(self._values[i])
                     if i == j:
                         ax.hist(x, weights=w.flatten() / chains, bins=binsx)
-                        ax.set_xlabel(pi)
                         ax.set_xlim(binsx[0], binsx[-1])
+                        ax.tick_params(labelleft=False, labelright=True)
                     elif i > j:
                         tracej = self.trace["{}_idx".format(pj)]
                         y = self._values[j][tracej].flatten()
@@ -206,18 +211,21 @@ class BSF(object):
                                             bins=(binsx, binsy))
                         Y, X = np.meshgrid(xedges, yedges)
                         ax.pcolormesh(X.T, Y.T, H, cmap="Blues")
-                        if i == npars - 1:
-                            ax.set_xlabel(pj)
                         if j == 0:
-                            ax.set_ylabel(pi)
+                            ax.set_ylabel(labels[i])
+                        else:
+                            ax.set_yticklabels([])
+                    if i == npars - 1:
+                        ax.set_xlabel(labels[j])
+                    else:
+                        ax.set_xticklabels([])
+            plt.subplots_adjust(hspace=0.03, wspace=0.03)
 
-            plt.show()
 
-
-    def plot_nonparametric_model(self):
+    def plot_corner_nonparametric(self):
         pass
 
-    def plot_parametric_model(self):
+    def plot_corner_parametric(self):
         pass
 
 if __name__ == "__main__":
