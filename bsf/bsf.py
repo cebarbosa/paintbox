@@ -21,17 +21,21 @@ import pymc3 as pm
 import theano
 import theano.tensor as T
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from matplotlib.colors import Normalize
 import astropy.units as u
 
 class BSF(object):
-    def __init__(self, wave, flux, templates, adegree=None, params=None,
-                 reddening=True, statmodel=None):
+    def __init__(self, wave, flux, templates, adegree=None,
+                 mdegree=None, params=None,
+                 reddening=False, statmodel=None):
         """ Model CSP with bayesian model. """
         self.wave = wave
         self.flux = flux
         self.templates = templates
         self.ntemplates = len(templates)
         self.adegree = adegree
+        self.mdegree = 10 if mdegree is None else mdegree
         self.reddening = reddening
         self.params = params
         self.statmodel = "npfit" if statmodel is None else statmodel
@@ -62,7 +66,16 @@ class BSF(object):
             for i in range(adegree+1):
                 self.apoly[i] = legendre(i)(_)
         else:
-            self.apoly = np.zeros(1)
+            self.apoly = 0.
+        ########################################################################
+        # Construct multiplicative polynomial
+        if self.mdegree is not None:
+            _ = np.linspace(-1, 1, len(self.wave))
+            self.mpoly = np.zeros((self.mdegree+1, len(_)))
+            for i in range(self.mdegree+1):
+                self.mpoly[i] = legendre(i)(_)
+        else:
+            self.mpoly = 1.
         build()
 
     def build_nonparametric_model(self):
@@ -122,9 +135,9 @@ class BSF(object):
                 extinction = T.pow(10, -0.4 * (self.kappa + Rv) * ebv)
             else:
                 extinction = pm.math.ones_like(self.flux0)
-            ####################################################################
-            bestfit =  self.flux0 * extinction * \
-                       (pm.math.dot(weights.T / T.sum(weights), self.templates))
+            bestfit =  self.flux0 * (extinction *
+                                     pm.math.dot(weights.T / T.sum(weights),
+                                    self.templates))
             eps = pm.Exponential("eps", lam=1)
             self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=eps, observed=self.flux)
@@ -149,6 +162,7 @@ class BSF(object):
         self.model = pm.Model()
         with self.model:
             w = pm.Dirichlet("w", np.ones(N))
+            self.flux0 = pm.Normal("f0", mu=1, sd=5)
             categs = []
             for i in range(nparams):
                 categs.append(pm.Categorical("{}_idx".format(
@@ -161,14 +175,18 @@ class BSF(object):
             ####################################################################
             # Handling Reddening law
             if self.reddening:
-                Rv = pm.Normal("Rv", mu=3.1, sd=1)
-                ebv = pm.Exponential("ebv", lam=2)
-                extinction = T.pow(10, -0.4 * (self.kappa + Rv) * ebv)
+                Rv = pm.Normal("Rv", mu=3.1, sd=1, shape=N)
+                ebv = pm.Exponential("ebv", lam=2, shape=N)
+                extinction = [T.pow(10, -0.4 * ebv[i] * (self.kappa + Rv[i]))
+                              for i in range(N)]
+                bestfit = self.flux0 * T.dot(w.T, [ssp[i] * extinction[i] for i
+                                                   in range(N)])
             else:
-                extinction = pm.math.ones_like(self.flux0)
-            ###################################################################
-            self.flux0 = pm.Normal("f0", mu=1, sd=5)
-            bestfit =  self.flux0 * extinction * T.dot(w.T, ssp)
+                mpoly = pm.Normal("mpoly", mu=0, sd=0.1, shape=self.mdegree +
+                                                               1)
+                bestfit = self.flux0 * T.dot(w.T, ssp) * T.dot(mpoly,
+                                                               self.mpoly)
+            ####################################################################
             eps = pm.Exponential("eps", lam=1)
             self.residuals = pm.Cauchy("resid", alpha=bestfit, beta=eps,
                                 observed=self.flux)
@@ -177,8 +195,11 @@ class BSF(object):
         """ Produces plot for model with N SSPs."""
         def calc_bins(vals):
             """ Returns the bins to be used for a discrete set of parameters."""
-            delta = 0.48 * np.diff(vals).min()
-            return np.unique(np.column_stack((vals - delta, vals + delta)))
+            vin = vals[:-1] + 0.5 * np.diff(vals)
+            v0 = 2 * vals[0] - vin[0]
+            vf = 2 * vals[-1] - vin[-1]
+            vs = np.hstack([v0, vin, vf])
+            return vs
         npars = len(self.params.colnames)
         if labels is None:
             labels = self.params.colnames
@@ -192,21 +213,45 @@ class BSF(object):
                     ax = plt.subplot2grid((npars, npars),
                                           (i,j))
                     ax.tick_params(right=True, top=True, axis="both",
-                                   direction='in', which="both")
+                                   direction='in', which="both",
+                                   width=0.5, pad=1, labelsize=6)
                     ax.minorticks_on()
                     tracei = self.trace["{}_idx".format(pi)]
-                    x = self._values[i][tracei].flatten()
+                    x = self._values[i][tracei]
                     chains = tracei.shape[0]
                     binsx = calc_bins(self._values[i])
+                    median = np.percentile(np.sum(w * x, axis=1), 50)
+                    p05 = np.percentile(np.sum(w * x, axis=1), 5)
+                    p95 = np.percentile(np.sum(w * x, axis=1), 95)
                     if i == j:
-                        ax.hist(x, weights=w.flatten() / chains, bins=binsx)
+                        N, bins, patches = ax.hist(x.flatten(),
+                            weights=w.flatten() / chains,
+                            color="b", ec="k",
+                            bins=binsx, density=True, edgecolor="k",
+                                                   histtype='bar')
+                        fracs = N.astype(float) / N.max()
+                        norm = Normalize(-.2 * fracs.max(), 1.5 * fracs.max())
+                        for thisfrac, thispatch in zip(fracs, patches):
+                            color = cm.Blues(norm(thisfrac))
+                            thispatch.set_facecolor(color)
+                            thispatch.set_edgecolor("none")
+                        ax.tick_params(labelleft=False)
                         ax.set_xlim(binsx[0], binsx[-1])
-                        ax.tick_params(labelleft=False, labelright=True)
+                        ax.set_title("{0}=${1:.2f}_{{-{2:.2f}}}^{{+{"
+                                     "3:.2f}}}$".format(
+                                    labels[i], median, median - p05,
+                                    p95 - median), fontsize=4, pad=1.5)
+                        for perc in [p05, median, p95]:
+                            ax.axvline(perc, ls="--", c="k", lw=0.3)
                     elif i > j:
                         tracej = self.trace["{}_idx".format(pj)]
-                        y = self._values[j][tracej].flatten()
+                        y = self._values[j][tracej]
+                        mediany = np.percentile(np.sum(w * y, axis=1), 50)
+                        p05y = np.percentile(np.sum(w * y, axis=1), 5)
+                        p95y = np.percentile(np.sum(w * y, axis=1), 95)
                         binsy = calc_bins(self._values[j])
-                        H, xedges, yedges = np.histogram2d(x, y,
+                        H, xedges, yedges = np.histogram2d(x.flatten(),
+                                                           y.flatten(),
                                             weights=w.flatten() / chains,
                                             bins=(binsx, binsy))
                         Y, X = np.meshgrid(xedges, yedges)
@@ -219,7 +264,11 @@ class BSF(object):
                         ax.set_xlabel(labels[j])
                     else:
                         ax.set_xticklabels([])
-            plt.subplots_adjust(hspace=0.03, wspace=0.03)
+                    for axis in ['top', 'bottom', 'left', 'right']:
+                        ax.spines[axis].set_linewidth(0.5)
+            plt.subplots_adjust(hspace=0.04, wspace=0.04, right=0.985, top=0.96,
+                                left=0.10, bottom=0.09)
+            fig.align_labels()
 
 
     def plot_corner_nonparametric(self):
