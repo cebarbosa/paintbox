@@ -28,16 +28,17 @@ import astropy.units as u
 class BSF(object):
     def __init__(self, wave, flux, templates, adegree=None,
                  mdegree=None, params=None,
-                 reddening=False, statmodel=None):
+                 reddening=False, statmodel=None, Nssps=2):
         """ Model CSP with bayesian model. """
         self.wave = wave
         self.flux = flux
         self.templates = templates
         self.ntemplates = len(templates)
         self.adegree = adegree
-        self.mdegree = 10 if mdegree is None else mdegree
+        self.mdegree = mdegree
         self.reddening = reddening
         self.params = params
+        self.Nssps = Nssps
         self.statmodel = "npfit" if statmodel is None else statmodel
         self.models = {"npfit": self.build_nonparametric_model,
                        "pfit": self.build_parametric_model,
@@ -62,17 +63,17 @@ class BSF(object):
         # Construct additive polynomial
         if self.adegree is not None:
             _ = np.linspace(-1, 1, len(self.wave))
-            self.apoly = np.zeros((adegree+1, len(_)))
-            for i in range(adegree+1):
-                self.apoly[i] = legendre(i)(_)
+            self.apoly = np.zeros((adegree, len(_)))
+            for i in range(adegree):
+                self.apoly[i] = legendre(i+1)(_)
         else:
             self.apoly = 0.
         ########################################################################
         # Construct multiplicative polynomial
         if self.mdegree is not None:
             _ = np.linspace(-1, 1, len(self.wave))
-            self.mpoly = np.zeros((self.mdegree+1, len(_)))
-            for i in range(self.mdegree+1):
+            self.mpoly = np.zeros((self.mdegree + 1, len(_)))
+            for i in range(self.mdegree):
                 self.mpoly[i] = legendre(i)(_)
         else:
             self.mpoly = 1.
@@ -142,9 +143,9 @@ class BSF(object):
             self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=eps, observed=self.flux)
 
-    def build_nssps_model(self, N=10):
+    def build_nssps_model(self):
         """ Build a model assuming a number of SSPs. """
-        self.Nssps = N
+        N = self.Nssps
         self._idxs, self._values = [], []
         nparams = len(self.params.colnames)
         for par in self.params.colnames:
@@ -179,14 +180,19 @@ class BSF(object):
                 ebv = pm.Exponential("ebv", lam=2, shape=N)
                 extinction = [T.pow(10, -0.4 * ebv[i] * (self.kappa + Rv[i]))
                               for i in range(N)]
-                bestfit = self.flux0 * T.dot(w.T, [ssp[i] * extinction[i] for i
-                                                   in range(N)])
+                csp = T.dot(w.T, [ssp[i] * extinction[i] for i in range(N)])
             else:
-                mpoly = pm.Normal("mpoly", mu=0, sd=0.1, shape=self.mdegree +
-                                                               1)
-                bestfit = self.flux0 * T.dot(w.T, ssp) * T.dot(mpoly,
-                                                               self.mpoly)
+                csp = T.dot(w.T, ssp)
             ####################################################################
+            # Handling multiplicative polynomial
+            if self.mdegree is not None:
+                mpoly = pm.Normal("mpoly", mu=0, sd=10,
+                                  shape=self.mdegree + 1)
+                continuum = T.dot(mpoly, self.mpoly)
+            else:
+                continuum = 1
+            ####################################################################
+            bestfit = csp * continuum
             eps = pm.Exponential("eps", lam=1)
             self.residuals = pm.Cauchy("resid", alpha=bestfit, beta=eps,
                                 observed=self.flux)
