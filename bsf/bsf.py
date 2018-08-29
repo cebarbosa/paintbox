@@ -28,7 +28,7 @@ import astropy.units as u
 class BSF(object):
     def __init__(self, wave, flux, templates, adegree=None,
                  mdegree=None, params=None,
-                 reddening=False, statmodel=None, Nssps=2):
+                 reddening=False, statmodel=None, Nssps=10, fluxerr=None):
         """ Model CSP with bayesian model. """
         self.wave = wave
         self.flux = flux
@@ -38,6 +38,7 @@ class BSF(object):
         self.mdegree = mdegree
         self.reddening = reddening
         self.params = params
+        self.fluxerr = fluxerr
         self.Nssps = Nssps
         self.statmodel = "npfit" if statmodel is None else statmodel
         self.models = {"npfit": self.build_nonparametric_model,
@@ -193,9 +194,18 @@ class BSF(object):
                 continuum = 1
             ####################################################################
             bestfit = csp * continuum
-            eps = pm.Exponential("eps", lam=1)
-            self.residuals = pm.Cauchy("resid", alpha=bestfit, beta=eps,
-                                observed=self.flux)
+            if self.fluxerr is None:
+                eps = pm.Exponential("eps", lam=1)
+                self.residuals = pm.Cauchy("resid", alpha=bestfit, beta=eps,
+                                    observed=self.flux)
+            else:
+                sigma_y = theano.shared(np.asarray(self.fluxerr,
+                                        dtype=theano.config.floatX),
+                                        name='sigma_y')
+                nu = pm.Uniform("nu", lower=1, upper=100)
+                self.residuals = pm.StudentT("resid", mu=bestfit, nu=nu,
+                                             sd=sigma_y, observed=self.flux)
+
 
     def plot_corner_nssps(self, labels=None):
         """ Produces plot for model with N SSPs."""
