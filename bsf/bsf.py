@@ -167,10 +167,10 @@ class BSF(object):
             self.flux0 = pm.Normal("f0", mu=1, sd=5)
             categs = []
             for i in range(nparams):
-                categs.append(pm.Categorical("{}_idx".format(
-                              self.params.colnames[i]),
-                              np.ones_like(self._values[i]) / len(self._values[i]),
-                    shape=N))
+                categs.append(
+                    pm.Categorical("{}_idx".format(self.params.colnames[i]),
+                        np.ones_like(self._values[i]) / len(self._values[i]),
+                        shape=N))
             ssp =  theano.shared(self.templates)[categs[0], categs[1],
                                                 categs[2], categs[3],
                                                 categs[4], :]
@@ -196,8 +196,10 @@ class BSF(object):
             bestfit = csp * continuum
             if self.fluxerr is None:
                 eps = pm.Exponential("eps", lam=1)
-                self.residuals = pm.Cauchy("resid", alpha=bestfit, beta=eps,
-                                    observed=self.flux)
+                # self.residuals = pm.Cauchy("resid", alpha=bestfit, beta=eps,
+                #                     observed=self.flux)
+                self.residuals = pm.Normal('residuals', mu=bestfit,
+                                        sd=eps, observed=self.flux)
             else:
                 sigma_y = theano.shared(np.asarray(self.fluxerr,
                                         dtype=theano.config.floatX),
