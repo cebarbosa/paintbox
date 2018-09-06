@@ -27,7 +27,7 @@ import astropy.units as u
 
 class BSF(object):
     def __init__(self, wave, flux, templates, adegree=None,
-                 mdegree=None, params=None,
+                 mdegree=0, params=None,
                  reddening=False, statmodel=None, Nssps=10, fluxerr=None):
         """ Model CSP with bayesian model. """
         self.wave = wave
@@ -71,10 +71,10 @@ class BSF(object):
             self.apoly = 0.
         ########################################################################
         # Construct multiplicative polynomial
-        if self.mdegree is not None:
+        if self.mdegree > 0:
             _ = np.linspace(-1, 1, len(self.wave))
-            self.mpoly = np.zeros((self.mdegree + 1, len(_)))
-            for i in range(self.mdegree):
+            self.mpoly = np.zeros((self.mdegree+1, len(_)))
+            for i in range(self.mdegree+1):
                 self.mpoly[i] = legendre(i)(_)
         else:
             self.mpoly = 1.
@@ -164,17 +164,11 @@ class BSF(object):
         self.model = pm.Model()
         with self.model:
             w = pm.Dirichlet("w", np.ones(N))
-            self.flux0 = pm.Normal("f0", mu=1, sd=5)
-            categs = []
-            for i in range(nparams):
-                categs.append(
-                    pm.Categorical("{}_idx".format(self.params.colnames[i]),
+            categs = [pm.Categorical("{}_idx".format(self.params.colnames[i]),
                         np.ones_like(self._values[i]) / len(self._values[i]),
-                        shape=N))
-            ssp =  theano.shared(self.templates)[categs[0], categs[1],
-                                                categs[2], categs[3],
-                                                categs[4], :]
-            ####################################################################
+                        shape=N) for i in range(nparams)]
+            s = "".join(["categs[{}],".format(i) for i in range(nparams)])
+            ssp = eval("theano.shared(self.templates)[{}:]".format(s))
             # Handling Reddening law
             if self.reddening:
                 Rv = pm.Normal("Rv", mu=3.1, sd=1, shape=N)
@@ -186,12 +180,12 @@ class BSF(object):
                 csp = T.dot(w.T, ssp)
             ####################################################################
             # Handling multiplicative polynomial
-            if self.mdegree is not None:
+            if self.mdegree >1:
                 mpoly = pm.Normal("mpoly", mu=0, sd=10,
                                   shape=self.mdegree + 1)
                 continuum = T.dot(mpoly, self.mpoly)
             else:
-                continuum = 1
+                continuum = pm.Normal("mpoly", mu=0, sd=10)
             ####################################################################
             bestfit = csp * continuum
             if self.fluxerr is None:
@@ -209,8 +203,9 @@ class BSF(object):
                                              sd=sigma_y, observed=self.flux)
 
 
-    def plot_corner_nssps(self, labels=None):
+    def plot_corner_nssps(self, labels=None, cmap=None):
         """ Produces plot for model with N SSPs."""
+        cmap = cm.get_cmap("cubehelix_r") if cmap is None else cm.get_cmap(cmap)
         def calc_bins(vals):
             """ Returns the bins to be used for a discrete set of parameters."""
             vin = vals[:-1] + 0.5 * np.diff(vals)
@@ -239,8 +234,8 @@ class BSF(object):
                     chains = tracei.shape[0]
                     binsx = calc_bins(self._values[i])
                     median = np.percentile(np.sum(w * x, axis=1), 50)
-                    p05 = np.percentile(np.sum(w * x, axis=1), 5)
-                    p95 = np.percentile(np.sum(w * x, axis=1), 95)
+                    p05 = np.percentile(np.sum(w * x, axis=1), 50-34.14)
+                    p95 = np.percentile(np.sum(w * x, axis=1), 50+34.14)
                     if i == j:
                         N, bins, patches = ax.hist(x.flatten(),
                             weights=w.flatten() / chains,
@@ -250,7 +245,7 @@ class BSF(object):
                         fracs = N.astype(float) / N.max()
                         norm = Normalize(-.2 * fracs.max(), 1.5 * fracs.max())
                         for thisfrac, thispatch in zip(fracs, patches):
-                            color = cm.Blues(norm(thisfrac))
+                            color = cmap(norm(thisfrac))
                             thispatch.set_facecolor(color)
                             thispatch.set_edgecolor("none")
                         ax.tick_params(labelleft=False)
@@ -264,22 +259,19 @@ class BSF(object):
                     elif i > j:
                         tracej = self.trace["{}_idx".format(pj)]
                         y = self._values[j][tracej]
-                        mediany = np.percentile(np.sum(w * y, axis=1), 50)
-                        p05y = np.percentile(np.sum(w * y, axis=1), 5)
-                        p95y = np.percentile(np.sum(w * y, axis=1), 95)
                         binsy = calc_bins(self._values[j])
                         H, xedges, yedges = np.histogram2d(x.flatten(),
                                                            y.flatten(),
                                             weights=w.flatten() / chains,
                                             bins=(binsx, binsy))
                         Y, X = np.meshgrid(xedges, yedges)
-                        ax.pcolormesh(X.T, Y.T, H, cmap="Blues")
+                        ax.pcolormesh(X.T, Y.T, H, cmap=cmap)
                         if j == 0:
-                            ax.set_ylabel(labels[i])
+                            ax.set_ylabel(labels[i], fontsize=8)
                         else:
                             ax.set_yticklabels([])
                     if i == npars - 1:
-                        ax.set_xlabel(labels[j])
+                        ax.set_xlabel(labels[j], fontsize=8)
                     else:
                         ax.set_xticklabels([])
                     for axis in ['top', 'bottom', 'left', 'right']:

@@ -14,10 +14,12 @@ import os
 import pickle
 
 import numpy as np
+from astropy.table import Table
 import matplotlib.pyplot as plt
+import pymc3 as pm
 
 import context
-from bsf.bsf import NPFit
+from bsf.bsf import BSF
 from simulations.make_simulated_csps import Templates
 
 
@@ -26,7 +28,7 @@ def fit_simulations(simclass, sigma, sn=300, redo=False):
     base_dir = os.path.join(context.workdir, "simulations",
                           "{}_sigma{}".format(simclass, sigma))
     sim_dir = os.path.join(base_dir, "data")
-    fit_dir = os.path.join(base_dir, "npfit_sn{}".format(sn))
+    fit_dir = os.path.join(base_dir, "nssps_sn{}".format(sn))
     if not os.path.exists(fit_dir):
         os.mkdir(fit_dir)
     ############################################################################
@@ -34,6 +36,8 @@ def fit_simulations(simclass, sigma, sn=300, redo=False):
     templates_file = os.path.join(sim_dir, "templates.pkl")
     with open(templates_file, "rb") as f:
         templates = pickle.load(f)
+    params = Table([np.log10(templates.ages1D), templates.metals1D], names=[
+        "Age", "Z"])
     ############################################################################
     simfiles = [_ for _ in sorted(os.listdir(sim_dir)) if _.endswith(".pkl")
                    and _.startswith("sim")]
@@ -43,16 +47,26 @@ def fit_simulations(simclass, sigma, sn=300, redo=False):
             sim = pickle.load(f)
 
         dbname = os.path.join(fit_dir, simfile.replace(".pkl", ".db"))
-        if os.path.exists(dbname) and not redo:
-            continue
+        summary = os.path.join(fit_dir, simfile.replace(".pkl", ".txt"))
         flux = sim["spec"]
         noise = np.random.normal(0, np.median(flux) / sn, size=len(flux))
         fsim = flux + noise
-        tmcsp = NPFit(templates.wave, fsim, templates.templates, reddening=True)
-        sample_kwargs = {"tune":1000}
-        tmcsp.NUTS_sampling(sample_kwargs=sample_kwargs)
-        tmcsp.save(dbname)
-        plot_tmscp(templates, dbname, sim, sn, fsim)
+        bsf = BSF(templates.wave, fsim, templates.templates, reddening=False,
+                  statmodel="nssps", params=params, mdegree=0)
+        if not os.path.exists(dbname):
+            with bsf.model:
+                db = pm.backends.Text(dbname)
+                bsf.trace = pm.sample(trace=db, njobs=4,
+                                      nuts_kwargs={"target_accept": 0.90})
+                df = pm.stats.summary(bsf.trace)
+                df.to_csv(summary)
+        with bsf.model:
+            bsf.trace = pm.backends.text.load(dbname)
+        cornerplot = os.path.join(fit_dir, simfile.replace(".pkl", ".png"))
+        if not os.path.exists(cornerplot) or redo:
+            bsf.plot_corner()
+            plt.savefig(cornerplot, dpi=300)
+            plt.show()
     return
 
 def plot_tmscp(templates, dbname, sim, sn, fsim):
@@ -133,4 +147,4 @@ def plot_tmscp(templates, dbname, sim, sn, fsim):
     ############################################################################
 
 if __name__ == "__main__":
-    fit_simulations("unimodal", 300, sn=300)
+    fit_simulations("unimodal", 300, sn=300, redo=True)
