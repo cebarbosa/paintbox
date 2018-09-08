@@ -26,10 +26,10 @@ from matplotlib.colors import Normalize
 import astropy.units as u
 
 class BSF(object):
-    def __init__(self, wave, flux, templates, adegree=None,
-                 mdegree=0, params=None,
-                 reddening=False, statmodel=None, Nssps=10, fluxerr=None):
-        """ Model CSP with bayesian model. """
+    def __init__(self, wave, flux, templates, adegree=None, mdegree=0,
+                 params=None, reddening=False, statmodel=None, Nssps=10,
+                 fluxerr=None, robust_fitting=True):
+        """ Model stellar populations with bayesian model. """
         self.wave = wave
         self.flux = flux
         self.templates = templates
@@ -40,6 +40,7 @@ class BSF(object):
         self.params = params
         self.fluxerr = fluxerr
         self.Nssps = Nssps
+        self.robust_fitting = robust_fitting
         self.statmodel = "npfit" if statmodel is None else statmodel
         self.models = {"npfit": self.build_nonparametric_model,
                        "pfit": self.build_parametric_model,
@@ -189,18 +190,19 @@ class BSF(object):
             ####################################################################
             bestfit = csp * continuum
             if self.fluxerr is None:
-                eps = pm.Exponential("eps", lam=1)
-                # self.residuals = pm.Cauchy("resid", alpha=bestfit, beta=eps,
-                #                     observed=self.flux)
-                self.residuals = pm.Normal('residuals', mu=bestfit,
-                                        sd=eps, observed=self.flux)
+                sigma_y = pm.Exponential("sigma_y", lam=1)
             else:
                 sigma_y = theano.shared(np.asarray(self.fluxerr,
                                         dtype=theano.config.floatX),
                                         name='sigma_y')
+            ####################################################################
+            if self.robust_fitting:
                 nu = pm.Uniform("nu", lower=1, upper=100)
-                self.residuals = pm.StudentT("resid", mu=bestfit, nu=nu,
+                self.residuals = pm.StudentT("residuals", mu=bestfit, nu=nu,
                                              sd=sigma_y, observed=self.flux)
+            else:
+                self.residuals = pm.Normal('residuals', mu=bestfit,
+                                        sd=sigma_y, observed=self.flux)
 
 
     def plot_corner_nssps(self, labels=None, cmap=None):

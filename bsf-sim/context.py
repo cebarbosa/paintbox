@@ -12,6 +12,11 @@ import sys
 import getpass
 
 if getpass.getuser() == "kadu":
+    home = "/home/kadu/Dropbox/bsf-sim"
+else:
+    home = "/sto/home/cebarbosa/bsf-sim"
+
+if getpass.getuser() == "kadu":
     workdir = "/home/kadu/Dropbox/bsf/"
     basedir = os.path.dirname(os.path.abspath(__file__))
 else:

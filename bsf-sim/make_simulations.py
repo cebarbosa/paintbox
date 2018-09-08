@@ -144,36 +144,12 @@ def simulate_bimodal_csps(templates, logdir, redo=False, nsim=100):
             pickle.dump(log, f)
     return
 
-def csp_modeling2(obs, templates, dbname, redo=False):
-    """ Model a CSP with bayesian model. """
-    if os.path.exists(dbname) and not redo:
-        return dbname
-    with pm.Model() as model:
-        muZ = pm.Uniform("muZ", lower=templates.metals.min(),
-                         upper=templates.metals.max())
-        muT = pm.Uniform("muT", lower=templates.ages.min(),
-                         upper=templates.ages.max())
-        sigmaZ = pm.Uniform("sigmaZ", lower=0.05, upper=1)
-        sigmaT = pm.Uniform("sigmaT", lower=0.1, upper=10)
-        w = pm.Deterministic("w", T.pow(2  * np.pi * sigmaT * sigmaZ , -1) * \
-                  T.exp(-0.5 * T.pow((muZ - templates.metals1D)/ sigmaZ, 2)) * \
-                  T.exp(-0.5 * T.pow((muT - templates.ages1D)/ sigmaT, 2)))
-        bestfit = pm.math.dot(w.T, templates.templates)
-        sigma = pm.Exponential("sigma", lam=1)
-        pm.Normal('like', mu=bestfit, sd = sigma, observed=obs)
-    with model:
-        trace = pm.sample(1000, tune=1000)
-    results = {'model': model, "trace": trace}
-    with open(dbname, 'wb') as buff:
-        pickle.dump(results, buff)
-    return
-
 def make_unimodal_simulations():
     """ Produces the simulations for unimodal distributions of ages and
     metallicites. """
     sigma = 300
     velscale = sigma / 10
-    nsim = 100
+    nsim = 1000
     logdir = os.path.join(context.workdir, "simulations",
                           "unimodal_sigma{}".format(sigma), "data")
     if not os.path.exists(logdir):

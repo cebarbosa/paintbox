@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import context
-from simulations.make_simulated_csps import Templates
+from simulations.make_simulations import Templates
 
 def plot_unimodal_simulations(sigma, sn):
     """ Make comparison of simulated values with those obtained with TMCSP. """
