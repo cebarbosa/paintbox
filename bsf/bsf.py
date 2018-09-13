@@ -19,10 +19,10 @@ import numpy as np
 from scipy.special import legendre
 import pymc3 as pm
 import theano
-import theano.tensor as T
+import theano.tensor as tt
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from matplotlib.colors import Normalize
+from scipy.interpolate import LinearNDInterpolator
 import astropy.units as u
 
 class BSF(object):
@@ -41,6 +41,10 @@ class BSF(object):
         self.fluxerr = fluxerr
         self.Nssps = Nssps
         self.robust_fitting = robust_fitting
+        x = self.params.as_array()
+        # a = x.view((x.dtype[0], len(x.dtype.names)))
+        # self.ssp = LinearNDInterpolator(a, templates)
+        # Defining statistical model
         self.statmodel = "npfit" if statmodel is None else statmodel
         self.models = {"npfit": self.build_nonparametric_model,
                        "pfit": self.build_parametric_model,
@@ -100,8 +104,8 @@ class BSF(object):
             else:
                 self.Rv = pm.Normal("Rv", mu=3.1, sd=1)
                 self.ebv = pm.Exponential("ebv", lam=2)
-                self.extinction = T.pow(10, -0.4 * (self.kappa + self.Rv) *
-                                                    self.ebv)
+                self.extinction = tt.pow(10, -0.4 * (self.kappa + self.Rv) *
+                                         self.ebv)
             ####################################################################
             self.bestfit = self.flux0 * self.extinction * \
                           (pm.math.dot(self.w.T, self.templates) + \
@@ -125,22 +129,22 @@ class BSF(object):
                                           sd=vals.std()))
                 stds.append(pm.Exponential("{}_std".format(p),
                                                 lam=1/vals.std()))
-                wps.append(pm.math.exp(-0.5 * T.pow(
+                wps.append(pm.math.exp(-0.5 * tt.pow(
                                     (mus[i] - vals) / stds[i],  2)))
             ws = pm.math.prod(wps)
-            weights = ws / T.sum(ws)
-            csp = pm.math.dot(weights.T / T.sum(weights), self.templates)
+            weights = ws / tt.sum(ws)
+            csp = pm.math.dot(weights.T / tt.sum(weights), self.templates)
             ####################################################################
             # Handling Reddening law
             if self.reddening:
                 Rv = pm.Normal("Rv", mu=3.1, sd=1)
                 ebv = pm.Exponential("ebv", lam=2)
-                extinction = T.pow(10, -0.4 * (self.kappa + Rv) * ebv)
+                extinction = tt.pow(10, -0.4 * (self.kappa + Rv) * ebv)
             else:
                 extinction = pm.math.ones_like(self.flux0)
             bestfit =  self.flux0 * (extinction *
-                                     pm.math.dot(weights.T / T.sum(weights),
-                                    self.templates))
+                                     pm.math.dot(weights.T / tt.sum(weights),
+                                                 self.templates))
             eps = pm.Exponential("eps", lam=1)
             self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=eps, observed=self.flux)
@@ -174,17 +178,17 @@ class BSF(object):
             if self.reddening:
                 Rv = pm.Normal("Rv", mu=3.1, sd=1, shape=N)
                 ebv = pm.Exponential("ebv", lam=2, shape=N)
-                extinction = [T.pow(10, -0.4 * ebv[i] * (self.kappa + Rv[i]))
+                extinction = [tt.pow(10, -0.4 * ebv[i] * (self.kappa + Rv[i]))
                               for i in range(N)]
-                csp = T.dot(w.T, [ssp[i] * extinction[i] for i in range(N)])
+                csp = tt.dot(w.T, [ssp[i] * extinction[i] for i in range(N)])
             else:
-                csp = T.dot(w.T, ssp)
+                csp = tt.dot(w.T, ssp)
             ####################################################################
             # Handling multiplicative polynomial
             if self.mdegree >1:
                 mpoly = pm.Normal("mpoly", mu=0, sd=10,
                                   shape=self.mdegree + 1)
-                continuum = T.dot(mpoly, self.mpoly)
+                continuum = tt.dot(mpoly, self.mpoly)
             else:
                 continuum = pm.Normal("mpoly", mu=0, sd=10)
             ####################################################################
@@ -274,12 +278,6 @@ class BSF(object):
                                 left=0.10, bottom=0.09)
             fig.align_labels()
 
-
-    def plot_corner_nonparametric(self):
-        pass
-
-    def plot_corner_parametric(self):
-        pass
 
 if __name__ == "__main__":
     pass

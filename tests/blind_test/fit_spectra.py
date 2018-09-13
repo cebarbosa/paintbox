@@ -108,9 +108,8 @@ def fit_spectra(redo=False, plot=False):
                                            wave < wnorm + dnorm))[0]
         norm = np.median(spec.flux[idx_norm])
         flux = spec.flux / norm
-        bsf = BSF(wave, flux, templates, params=params,
-                  statmodel="nssps",
-                  reddening=False, mdegree=1, Nssps=20)
+        bsf = BSF(wave, flux, templates, params=params, statmodel="nssps",
+                  reddening=False, mdegree=1, Nssps=5, robust_fitting=False)
         if not os.path.exists(dbname):
             with bsf.model:
                 db = pm.backends.Text(dbname)
@@ -135,10 +134,6 @@ def fit_spectra(redo=False, plot=False):
 
 
 if __name__ == "__main__":
-    plt.style.context("seaborn-paper")
-    plt.rcParams["text.usetex"] = True
-    plt.rcParams["font.family"] = "serif"
-    plt.rcParams['font.serif'] = 'Computer Modern'
-    fit_spectra()
+    fit_spectra(plot=True, redo=True)
 
 
