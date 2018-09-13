@@ -207,7 +207,7 @@ class BSF(object):
 
     def plot_corner_nssps(self, labels=None, cmap=None):
         """ Produces plot for model with N SSPs."""
-        cmap = cm.get_cmap("cubehelix_r") if cmap is None else cm.get_cmap(cmap)
+        cmap = cm.get_cmap("viridis") if cmap is None else cm.get_cmap(cmap)
         def calc_bins(vals):
             """ Returns the bins to be used for a discrete set of parameters."""
             vin = vals[:-1] + 0.5 * np.diff(vals)
@@ -239,17 +239,9 @@ class BSF(object):
                     p05 = np.percentile(np.sum(w * x, axis=1), 50-34.14)
                     p95 = np.percentile(np.sum(w * x, axis=1), 50+34.14)
                     if i == j:
-                        N, bins, patches = ax.hist(x.flatten(),
-                            weights=w.flatten() / chains,
-                            color="b", ec="k",
-                            bins=binsx, density=True, edgecolor="k",
-                                                   histtype='bar')
-                        fracs = N.astype(float) / N.max()
-                        norm = Normalize(-.2 * fracs.max(), 1.5 * fracs.max())
-                        for thisfrac, thispatch in zip(fracs, patches):
-                            color = cmap(norm(thisfrac))
-                            thispatch.set_facecolor(color)
-                            thispatch.set_edgecolor("none")
+                        ax.hist(x.flatten(), weights=w.flatten() / chains,
+                                color="C0", bins=binsx, density=True,
+                                histtype='stepfilled')
                         ax.tick_params(labelleft=False)
                         ax.set_xlim(binsx[0], binsx[-1])
                         ax.set_title("{0}=${1:.2f}_{{-{2:.2f}}}^{{+{"
