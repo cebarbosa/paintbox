@@ -90,8 +90,7 @@ def plot_fitting(bsf, norm=1., spec=None):
                         top=.98)
     return
 
-def fit_spectra(redo=False):
-    sigma = 360 # km/s
+def fit_spectra(redo=False, plot=False):
     wnorm = 5635
     dnorm = 40
     filenames = sorted(os.listdir(context.data_dir))
@@ -99,6 +98,7 @@ def fit_spectra(redo=False):
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     for filename in filenames:
+        print("Processing file {}".format(filename))
         spec = read_fits_spectrum1d(os.path.join(context.data_dir, filename))
         dbname = os.path.join(outdir, filename.replace(".fits", ""))
         summary = os.path.join(outdir, filename.replace(".fits", ".txt"))
@@ -110,7 +110,7 @@ def fit_spectra(redo=False):
         flux = spec.flux / norm
         bsf = BSF(wave, flux, templates, params=params,
                   statmodel="nssps",
-                  reddening=False, mdegree=1, Nssps=10)
+                  reddening=False, mdegree=1, Nssps=20)
         if not os.path.exists(dbname):
             with bsf.model:
                 db = pm.backends.Text(dbname)
@@ -120,23 +120,25 @@ def fit_spectra(redo=False):
                 df.to_csv(summary)
         with bsf.model:
             bsf.trace = pm.backends.text.load(dbname)
-        plt.style.context("seaborn-paper")
-        plt.rcParams["text.usetex"] = True
-        plt.rcParams["font.family"] = "serif"
-        plt.rcParams['font.serif'] = 'Computer Modern'
+        if not plot:
+            continue
         print("Producing corner figure...")
         bsf.plot_corner(labels=[r"$\alpha - 1$", "[Z/H]", "Age (Gyr)",
                                 r"[$\alpha$/Fe]", "[Na/Fe]"])
         plt.savefig(cornerplot, dpi=300)
         plt.show()
-        plt.close()
-        bsf.fluxerr = 0
-        plot_fitting(bsf)
-        plt.show()
+        # plt.close()
+        # bsf.fluxerr = 0
+        # plot_fitting(bsf)
+        # plt.show()
 
 
 
 if __name__ == "__main__":
+    plt.style.context("seaborn-paper")
+    plt.rcParams["text.usetex"] = True
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams['font.serif'] = 'Computer Modern'
     fit_spectra()
 
 
