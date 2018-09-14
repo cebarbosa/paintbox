@@ -15,7 +15,7 @@ from __future__ import print_function, division
 from builtins import range
 from builtins import object
 
-import numpy as np
+import autograd.numpy as np
 from scipy.special import legendre
 import pymc3 as pm
 import theano
@@ -41,11 +41,10 @@ class BSF(object):
         self.fluxerr = fluxerr
         self.Nssps = Nssps
         self.robust_fitting = robust_fitting
-        x = self.params.as_array()
-        # a = x.view((x.dtype[0], len(x.dtype.names)))
-        # self.ssp = LinearNDInterpolator(a, templates)
+        # Making linear interpolation of templates
+        self.ssp = SSP(self.params, self.templates)
         # Defining statistical model
-        self.statmodel = "npfit" if statmodel is None else statmodel
+        self.statmodel = "nssps" if statmodel is None else statmodel
         self.models = {"npfit": self.build_nonparametric_model,
                        "pfit": self.build_parametric_model,
                        "nssps": self.build_nssps_model}
@@ -84,6 +83,58 @@ class BSF(object):
         else:
             self.mpoly = 1.
         build()
+
+    def build_nssps_model(self):
+        """ Build a model assuming a number of SSPs. """
+        N = self.Nssps
+        nparams = len(self.params.colnames)
+        self.model = pm.Model()
+        self.lower = [self.params[col].min() for col in
+                      self.params.colnames]
+        self.upper = [self.params[col].max() for col in
+                      self.params.colnames]
+        with self.model:
+            w = pm.Dirichlet("w", np.ones(N))
+            ssps = []
+            for n in range(N):
+                pars = [pm.Uniform("{}_{}".format(self.params.colnames[i], n),
+                        lower=self.lower[i], upper=self.upper[i]) for i in
+                        range(nparams)]
+                ssps.append(self.ssp(tt.as_tensor_variable(pars)))
+            ssps = tt.as_tensor_variable(ssps)
+            # Handling Reddening law
+            if self.reddening:
+                Rv = pm.Normal("Rv", mu=3.1, sd=1, shape=N)
+                ebv = pm.Exponential("ebv", lam=2, shape=N)
+                extinction = [tt.pow(10, -0.4 * ebv[i] * (self.kappa + Rv[i]))
+                              for i in range(N)]
+                csp = tt.dot(w.T, [ssps[i] * extinction[i] for i in range(N)])
+            else:
+                csp = tt.dot(w.T, ssps)
+            ####################################################################
+            # Handling multiplicative polynomial
+            if self.mdegree >1:
+                mpoly = pm.Normal("mpoly", mu=0, sd=10,
+                                  shape=self.mdegree + 1)
+                continuum = tt.dot(mpoly, self.mpoly)
+            else:
+                continuum = pm.Normal("mpoly", mu=0, sd=10)
+            ####################################################################
+            bestfit = csp * continuum
+            if self.fluxerr is None:
+                sigma_y = pm.Exponential("sigma_y", lam=1)
+            else:
+                sigma_y = theano.shared(np.asarray(self.fluxerr,
+                                        dtype=theano.config.floatX),
+                                        name='sigma_y')
+            ####################################################################
+            if self.robust_fitting:
+                nu = pm.Uniform("nu", lower=1, upper=100)
+                self.residuals = pm.StudentT("residuals", mu=bestfit, nu=nu,
+                                             sd=sigma_y, observed=self.flux)
+            else:
+                self.residuals = pm.Normal('residuals', mu=bestfit,
+                                        sd=sigma_y, observed=self.flux)
 
     def build_nonparametric_model(self):
         """ Build a non-parametric model for the fitting. """
@@ -149,7 +200,7 @@ class BSF(object):
             self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=eps, observed=self.flux)
 
-    def build_nssps_model(self):
+    def build_nssps_model_discrete(self):
         """ Build a model assuming a number of SSPs. """
         N = self.Nssps
         self._idxs, self._values = [], []
@@ -208,8 +259,70 @@ class BSF(object):
                 self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=sigma_y, observed=self.flux)
 
-
     def plot_corner_nssps(self, labels=None, cmap=None):
+        """ Produces plot for model with N SSPs."""
+        cmap = cm.get_cmap("viridis") if cmap is None else cm.get_cmap(cmap)
+        npars = len(self.params.colnames)
+        if labels is None:
+            labels = self.params.colnames
+        with self.model:
+            w = self.trace["w"]
+            fig = plt.figure(figsize=(3.32153, 3.32153))
+            for i, pi in enumerate(self.params.colnames):
+                for j, pj in enumerate(self.params.colnames):
+                    if i < j:
+                        continue
+                    ax = plt.subplot2grid((npars, npars),
+                                          (i,j))
+                    ax.tick_params(right=True, top=True, axis="both",
+                                   direction='in', which="both",
+                                   width=0.5, pad=1, labelsize=6)
+                    ax.minorticks_on()
+                    tracei = self.trace["{}_idx".format(pi)]
+                    x = self._values[i][tracei]
+                    chains = tracei.shape[0]
+                    binsx = calc_bins(self._values[i])
+                    median = np.percentile(np.sum(w * x, axis=1), 50)
+                    p05 = np.percentile(np.sum(w * x, axis=1), 50-34.14)
+                    p95 = np.percentile(np.sum(w * x, axis=1), 50+34.14)
+                    if i == j:
+                        ax.hist(x.flatten(), weights=w.flatten() / chains,
+                                color="C0", bins=binsx, density=True,
+                                histtype='stepfilled')
+                        ax.tick_params(labelleft=False)
+                        ax.set_xlim(binsx[0], binsx[-1])
+                        ax.set_title("{0}=${1:.2f}_{{-{2:.2f}}}^{{+{"
+                                     "3:.2f}}}$".format(
+                                    labels[i], median, median - p05,
+                                    p95 - median), fontsize=4, pad=1.5)
+                        for perc in [p05, median, p95]:
+                            ax.axvline(perc, ls="--", c="k", lw=0.3)
+                    elif i > j:
+                        tracej = self.trace["{}_idx".format(pj)]
+                        y = self._values[j][tracej]
+                        binsy = calc_bins(self._values[j])
+                        H, xedges, yedges = np.histogram2d(x.flatten(),
+                                                           y.flatten(),
+                                            weights=w.flatten() / chains,
+                                            bins=(binsx, binsy))
+                        Y, X = np.meshgrid(xedges, yedges)
+                        ax.pcolormesh(X.T, Y.T, H, cmap=cmap)
+                        if j == 0:
+                            ax.set_ylabel(labels[i], fontsize=8)
+                        else:
+                            ax.set_yticklabels([])
+                    if i == npars - 1:
+                        ax.set_xlabel(labels[j], fontsize=8)
+                    else:
+                        ax.set_xticklabels([])
+                    for axis in ['top', 'bottom', 'left', 'right']:
+                        ax.spines[axis].set_linewidth(0.5)
+            plt.subplots_adjust(hspace=0.04, wspace=0.04, right=0.985, top=0.96,
+                                left=0.10, bottom=0.09)
+            fig.align_labels()
+
+
+    def plot_corner_nssps_discrete(self, labels=None, cmap=None):
         """ Produces plot for model with N SSPs."""
         cmap = cm.get_cmap("viridis") if cmap is None else cm.get_cmap(cmap)
         def calc_bins(vals):
@@ -278,6 +391,60 @@ class BSF(object):
                                 left=0.10, bottom=0.09)
             fig.align_labels()
 
+    def build_nonparametric_model(self):
+        pass
+
+    def plot_corner_nonparametric(self):
+        pass
+
+    def build_parametric_model(self):
+        pass
+
+    def plot_corner_parametric(self):
+        pass
+
+class SSP(tt.Op):
+    """ Class for linear interpolation of SSPs."""
+    itypes = [tt.dvector]
+    otypes = [tt.dvector]
+
+    def __init__(self, params, templates):
+        x = params.as_array()
+        a = x.view((x.dtype[0], len(x.dtype.names)))
+        self.func = LinearNDInterpolator(a, templates)
+        self.sspgrad = SSPGrad(self.func)
+
+    def perform(self, node, inputs, outputs):
+        theta, = inputs  # this will contain my variables
+        outputs[0][0] = self.func(*theta)
+
+    def grad(self, inputs, g):
+        theta, = inputs  # our parameters
+        return [tt.dot(g[0], self.sspgrad(theta))]
+
+class SSPGrad(tt.Op):
+    """ Calculates the Jacobian of the SSPs. """
+    itypes = [tt.dvector]
+    otypes = [tt.dmatrix]
+
+    def __init__(self, func, eps=1e-6):
+        self.func = func
+        self.eps = eps
+
+    def perform(self, node, inputs, outputs):
+        theta, = inputs  # this will contain my variables
+        jacob = approx_jacobian(self.func, theta)
+        outputs[0][0] = jacob
+
+def approx_jacobian(func, coord, eps=1e-6):
+    """ Estimates the  Jacobian using finite-diference approximation. """
+    grads = []
+    x = np.array(coord)
+    for e in np.eye(len(x)) * eps:
+        partial = (func(x + e) - func(x - e)) / (2 * eps)
+        grads.append(partial[0])
+    grads = np.array(grads).T
+    return grads
 
 if __name__ == "__main__":
     pass
