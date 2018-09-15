@@ -41,8 +41,6 @@ class BSF(object):
         self.fluxerr = fluxerr
         self.Nssps = Nssps
         self.robust_fitting = robust_fitting
-        # Making linear interpolation of templates
-        self.ssp = SSP(self.params, self.templates)
         # Defining statistical model
         self.statmodel = "nssps" if statmodel is None else statmodel
         self.models = {"npfit": self.build_nonparametric_model,
@@ -84,8 +82,10 @@ class BSF(object):
             self.mpoly = 1.
         build()
 
-    def build_nssps_model(self):
+    def build_nssps_model_interp(self):
         """ Build a model assuming a number of SSPs. """
+        # Making linear interpolation of templates
+        self.ssp = SSP(self.params, self.templates)
         N = self.Nssps
         nparams = len(self.params.colnames)
         self.model = pm.Model()
@@ -94,7 +94,10 @@ class BSF(object):
         self.upper = [self.params[col].max() for col in
                       self.params.colnames]
         with self.model:
-            w = pm.Dirichlet("w", np.ones(N))
+            if N > 1:
+                w = pm.Dirichlet("w", np.ones(N))
+            else:
+                w = np.array([1.])
             ssps = []
             for n in range(N):
                 pars = [pm.Uniform("{}_{}".format(self.params.colnames[i], n),
@@ -200,7 +203,7 @@ class BSF(object):
             self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=eps, observed=self.flux)
 
-    def build_nssps_model_discrete(self):
+    def build_nssps_model(self):
         """ Build a model assuming a number of SSPs. """
         N = self.Nssps
         self._idxs, self._values = [], []
@@ -259,7 +262,7 @@ class BSF(object):
                 self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=sigma_y, observed=self.flux)
 
-    def plot_corner_nssps(self, labels=None, cmap=None):
+    def plot_corner_nssps_interp(self, labels=None, cmap=None):
         """ Produces plot for model with N SSPs."""
         cmap = cm.get_cmap("viridis") if cmap is None else cm.get_cmap(cmap)
         npars = len(self.params.colnames)
@@ -322,7 +325,7 @@ class BSF(object):
             fig.align_labels()
 
 
-    def plot_corner_nssps_discrete(self, labels=None, cmap=None):
+    def plot_corner_nssps(self, labels=None, cmap=None):
         """ Produces plot for model with N SSPs."""
         cmap = cm.get_cmap("viridis") if cmap is None else cm.get_cmap(cmap)
         def calc_bins(vals):
@@ -412,15 +415,15 @@ class SSP(tt.Op):
         x = params.as_array()
         a = x.view((x.dtype[0], len(x.dtype.names)))
         self.func = LinearNDInterpolator(a, templates)
-        self.sspgrad = SSPGrad(self.func)
+        # self.sspgrad = SSPGrad(self.func)
 
     def perform(self, node, inputs, outputs):
         theta, = inputs  # this will contain my variables
         outputs[0][0] = self.func(*theta)
 
-    def grad(self, inputs, g):
-        theta, = inputs  # our parameters
-        return [tt.dot(g[0], self.sspgrad(theta))]
+    # def grad(self, inputs, g):
+    #     theta, = inputs  # our parameters
+    #     return [tt.dot(g[0], self.sspgrad(theta))]
 
 class SSPGrad(tt.Op):
     """ Calculates the Jacobian of the SSPs. """

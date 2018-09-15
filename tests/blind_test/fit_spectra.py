@@ -90,7 +90,7 @@ def plot_fitting(bsf, norm=1., spec=None):
                         top=.98)
     return
 
-def fit_spectra(redo=False, plot=False):
+def fit_spectra(plot=False):
     wnorm = 5635
     dnorm = 40
     filenames = sorted(os.listdir(context.data_dir))
@@ -109,7 +109,7 @@ def fit_spectra(redo=False, plot=False):
         norm = np.median(spec.flux[idx_norm])
         flux = spec.flux / norm
         bsf = BSF(wave, flux, templates, params=params, statmodel="nssps",
-                  reddening=False, mdegree=1, Nssps=5, robust_fitting=False)
+                  reddening=False, mdegree=1, Nssps=10, robust_fitting=False)
         if not os.path.exists(dbname):
             with bsf.model:
                 db = pm.backends.Text(dbname)
@@ -134,6 +134,6 @@ def fit_spectra(redo=False, plot=False):
 
 
 if __name__ == "__main__":
-    fit_spectra(plot=True, redo=True)
+    fit_spectra(plot=True)
 
 
