@@ -107,7 +107,11 @@ def fit_spectra(plot=False):
         norm = np.median(spec.flux[idx_norm])
         flux = spec.flux / norm
         bsf = BSF(wave, flux, templates, params=params, statmodel="npfit",
+<<<<<<< HEAD
                   reddening=False, mdegree=1, robust_fitting=False)
+=======
+                  reddening=False, mdegree=1, Nssps=10, robust_fitting=False)
+>>>>>>> 403f86be6be1a4dd585f19af4601b32ad6323a0f
         if not os.path.exists(dbname):
             with bsf.model:
                 db = pm.backends.Text(dbname)

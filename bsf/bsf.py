@@ -143,14 +143,24 @@ class BSF(object):
     def build_nonparametric_model(self):
         """ Build a non-parametric model for the fitting. """
         with self.model:
-            loga = pm.Uniform("loga", lower=-3, upper=3,
-                              shape=int(self.ntemplates))
+            # Tentative method 1
+            # loga = pm.Uniform("loga", lower=-3, upper=3,
+            #                   shape=int(self.ntemplates))
+            # w = pm.Dirichlet("w", pm.math.exp(np.log(10.) * loga),
+            #                  shape=int(self.ntemplates))
+            # Tentative method 2
+            # loga = pm.Uniform("loga", lower=-3, upper=3,
+            #                                     shape=int(self.ntemplates))
             # logb = pm.Uniform("logb", lower=-3, upper=2)
             # regul = pm.Gamma("regul", alpha=pm.math.exp(np.log(10.) * loga),
             #                  beta=pm.math.exp(np.log(10.) * logb),
             #                  shape=int(self.ntemplates))
-            w = pm.Dirichlet("w", pm.math.exp(np.log(10.) * loga),
-                             shape=int(self.ntemplates))
+            # w = pm.Dirichlet("w", regul, shape=int(self.ntemplates))
+            # Tentative method 3
+            a = pm.Uniform("a", lower=-1, upper=1, shape=int(self.ntemplates))
+            b = pm.Exponential("b", pm.math.exp(np.log(10.) * a) * \
+                                  self.ntemplates, shape=int(self.ntemplates))
+            w = pm.Dirichlet("w", b, shape=int(self.ntemplates))
             csp = pm.math.dot(w, [self.templates[i] * self.extinction[i] for i
                                    in range(self.Nssps)])
             bestfit = csp * self.continuum
@@ -333,38 +343,22 @@ class BSF(object):
             vf = 2 * vals[-1] - vin[-1]
             vs = np.hstack([v0, vin, vf])
             return vs
-        self._idxs, self._values = [], []
-        npars = len(self.params.colnames)
-        for par in self.params.colnames:
-            vals = np.array(np.unique(self.params[par]))
-            dict_ = dict([(x,i) for i,x in enumerate(vals)])
-            self._idxs.append(dict_)
-            self._values.append(vals)
-        w = self.trace["w"].T
-        nchains = len(w[0])
-        shape = [len(_) for _ in self._idxs] + [nchains]
-        weights = np.zeros(shape)
-        for j, p in enumerate(np.array(self.params)):
-            idx = tuple([self._idxs[i][v] for i,v in enumerate(p)] +
-                        [np.arange(nchains)])
-            weights[idx] = w[j]
+        self.process_trace_npfit()
+
         fig = plt.figure(figsize=(3.32153, 3.32153))
         for i, pi in enumerate(self.params.colnames):
             for j, pj in enumerate(self.params.colnames):
                 if i < j:
                     continue
-                print(i, j)
-                ax = plt.subplot2grid((npars, npars),
-                                      (i, j))
+                ax = plt.subplot2grid((self.npars, self.npars), (i, j))
                 ax.tick_params(right=True, top=True, axis="both",
                                direction='in', which="both",
                                width=0.5, pad=1, labelsize=6)
                 ax.minorticks_on()
-                axis = tuple(np.setdiff1d(np.arange(npars + 1),
+                axis = tuple(np.setdiff1d(np.arange(self.npars + 1),
                                           np.array([i, j])))
-                data = np.sum(weights, axis=axis) / nchains
+                data = np.sum(self.weights, axis=axis) / self.nchains
                 if i == j:
-                    print(self._values[i])
                     bins = calc_bins(self._values[i])
                     ax.bar(self._values[i], data, np.diff(bins))
                 else:
@@ -375,8 +369,33 @@ class BSF(object):
                     ax.pcolormesh(X, Y, data.T)
         plt.show()
 
-
-
+    def process_trace_npfit(self):
+        """ Uses trace to calculate parameters of interest. """
+        self._idxs, self._values = [], []
+        for par in self.params.colnames:
+            vals = np.array(np.unique(self.params[par]))
+            dict_ = dict([(x,i) for i,x in enumerate(vals)])
+            self._idxs.append(dict_)
+            self._values.append(vals)
+        w = self.trace["w"].T
+        self.nchains = len(w[0])
+        shape = [len(_) for _ in self._idxs] + [self.nchains]
+        self.weights = np.zeros(shape)
+        for j, p in enumerate(np.array(self.params)):
+            idx = tuple([self._idxs[i][v] for i,v in enumerate(p)] +
+                        [np.arange(self.nchains)])
+            self.weights[idx] = w[j]
+        self.npars = len(self.params.colnames)
+        self.means = {}
+        for i,par in enumerate(self.params.colnames):
+            axis = tuple(np.setdiff1d(np.arange(self.npars), np.array([i])))
+            w = np.sum(self.weights, axis=axis)
+            v = np.dot(self._values[i], w)
+            mean = np.mean(v)
+            std = np.std(v)
+            sigma = np.sqrt(np.sum(w * np.power(v - mean, 2)))
+            median = np.median(v)
+            print(mean, std)
 
 
     def build_parametric_model(self):
