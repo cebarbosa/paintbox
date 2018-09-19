@@ -111,7 +111,8 @@ def prepare_blind_test():
     outdir = os.path.join(context.home, "templates")
     if not os.path.exists(outdir):
         os.mkdir(outdir)
-    output = os.path.join(outdir, "emiles_templates.fits")
+    output = os.path.join(outdir, "emiles_ages_metal.fits")
+
     prepare_templates(spec.dispersion, sigma, output)
 
 if __name__ == "__main__":

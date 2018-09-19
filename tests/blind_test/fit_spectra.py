@@ -108,7 +108,7 @@ def fit_spectra(plot=False):
                                            wave < wnorm + dnorm))[0]
         norm = np.median(spec.flux[idx_norm])
         flux = spec.flux / norm
-        bsf = BSF(wave, flux, templates, params=params, statmodel="nssps",
+        bsf = BSF(wave, flux, templates, params=params, statmodel="npfit",
                   reddening=False, mdegree=1, Nssps=10, robust_fitting=False)
         if not os.path.exists(dbname):
             with bsf.model:

@@ -333,38 +333,23 @@ class BSF(object):
             vf = 2 * vals[-1] - vin[-1]
             vs = np.hstack([v0, vin, vf])
             return vs
-        self._idxs, self._values = [], []
-        npars = len(self.params.colnames)
-        for par in self.params.colnames:
-            vals = np.array(np.unique(self.params[par]))
-            dict_ = dict([(x,i) for i,x in enumerate(vals)])
-            self._idxs.append(dict_)
-            self._values.append(vals)
-        w = self.trace["w"].T
-        nchains = len(w[0])
-        shape = [len(_) for _ in self._idxs] + [nchains]
-        weights = np.zeros(shape)
-        for j, p in enumerate(np.array(self.params)):
-            idx = tuple([self._idxs[i][v] for i,v in enumerate(p)] +
-                        [np.arange(nchains)])
-            weights[idx] = w[j]
+        self.process_trace_npfit()
+
         fig = plt.figure(figsize=(3.32153, 3.32153))
         for i, pi in enumerate(self.params.colnames):
             for j, pj in enumerate(self.params.colnames):
                 if i < j:
                     continue
                 print(i, j)
-                ax = plt.subplot2grid((npars, npars),
-                                      (i, j))
+                ax = plt.subplot2grid((self.npars, self.npars), (i, j))
                 ax.tick_params(right=True, top=True, axis="both",
                                direction='in', which="both",
                                width=0.5, pad=1, labelsize=6)
                 ax.minorticks_on()
-                axis = tuple(np.setdiff1d(np.arange(npars + 1),
+                axis = tuple(np.setdiff1d(np.arange(self.npars + 1),
                                           np.array([i, j])))
-                data = np.sum(weights, axis=axis) / nchains
+                data = np.sum(self.weights, axis=axis) / self.nchains
                 if i == j:
-                    print(self._values[i])
                     bins = calc_bins(self._values[i])
                     ax.bar(self._values[i], data, np.diff(bins))
                 else:
@@ -375,8 +360,29 @@ class BSF(object):
                     ax.pcolormesh(X, Y, data.T)
         plt.show()
 
-
-
+    def process_trace_npfit(self):
+        """ Uses trace to calculate parameters of interest. """
+        self._idxs, self._values = [], []
+        for par in self.params.colnames:
+            vals = np.array(np.unique(self.params[par]))
+            dict_ = dict([(x,i) for i,x in enumerate(vals)])
+            self._idxs.append(dict_)
+            self._values.append(vals)
+        w = self.trace["w"].T
+        self.nchains = len(w[0])
+        shape = [len(_) for _ in self._idxs] + [self.nchains]
+        self.weights = np.zeros(shape)
+        for j, p in enumerate(np.array(self.params)):
+            idx = tuple([self._idxs[i][v] for i,v in enumerate(p)] +
+                        [np.arange(self.nchains)])
+            self.weights[idx] = w[j]
+        self.npars = len(self.params.colnames)
+        for i in range(self.npars):
+            axis = tuple(np.setdiff1d(np.arange(self.npars + 1), i))
+            print(axis)
+            input()
+            data = np.sum(self.weights, axis=axis) / self.nchains
+            marginal = np.sum()
 
 
     def build_parametric_model(self):
