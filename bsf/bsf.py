@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from scipy.interpolate import LinearNDInterpolator
 import astropy.units as u
+from uncertainties import ufloat
 
 class BSF(object):
     def __init__(self, wave, flux, templates, adegree=None, mdegree=0,
@@ -157,7 +158,7 @@ class BSF(object):
             #                  shape=int(self.ntemplates))
             # w = pm.Dirichlet("w", regul, shape=int(self.ntemplates))
             # Tentative method 3
-            a = pm.Uniform("a", lower=-1, upper=1, shape=int(self.ntemplates))
+            a = pm.Uniform("a", lower=-3, upper=2, shape=int(self.ntemplates))
             b = pm.Exponential("b", pm.math.exp(np.log(10.) * a) * \
                                   self.ntemplates, shape=int(self.ntemplates))
             w = pm.Dirichlet("w", b, shape=int(self.ntemplates))
@@ -174,10 +175,11 @@ class BSF(object):
                 self.residuals = pm.Normal('residuals', mu=bestfit,
                                         sd=self.sigma_y, observed=self.flux)
 
+
     def build_parametric_model(self):
         """ Build a parametric model for the fitting. """
         self.model = pm.Model()
-        with self.model:
+        with self.model as model:
             self.flux0 = pm.Normal("f0", mu=1, sd=5)
             mus, stds = [], []
             wps = [] # Partial weights
@@ -343,7 +345,7 @@ class BSF(object):
             vf = 2 * vals[-1] - vin[-1]
             vs = np.hstack([v0, vin, vf])
             return vs
-        self.process_trace_npfit()
+        self.calc_estimates_npfit()
 
         fig = plt.figure(figsize=(3.32153, 3.32153))
         for i, pi in enumerate(self.params.colnames):
@@ -369,7 +371,7 @@ class BSF(object):
                     ax.pcolormesh(X, Y, data.T)
         plt.show()
 
-    def process_trace_npfit(self):
+    def calc_estimates_npfit(self):
         """ Uses trace to calculate parameters of interest. """
         self._idxs, self._values = [], []
         for par in self.params.colnames:
@@ -387,16 +389,15 @@ class BSF(object):
             self.weights[idx] = w[j]
         self.npars = len(self.params.colnames)
         self.means = {}
+        self.estimates = {}
         for i,par in enumerate(self.params.colnames):
             axis = tuple(np.setdiff1d(np.arange(self.npars), np.array([i])))
-            w = np.sum(self.weights, axis=axis)
-            v = np.dot(self._values[i], w)
-            mean = np.mean(v)
-            std = np.std(v)
-            sigma = np.sqrt(np.sum(w * np.power(v - mean, 2)))
-            median = np.median(v)
-            print(mean, std)
-
+            w = np.sum(self.weights, axis=axis).T
+            x = np.tile(self._values[i], (len(w), 1))
+            v1 = np.sum(w * x, axis=1)
+            v2 = np.sqrt(np.sum(w * (x - v1[:,None])**2, axis=1))
+            self.estimates[par] = {"mean" : ufloat(np.mean(v1), np.std(v1)),
+                                   "std" :  ufloat(np.mean(v2), np.std(v2))}
 
     def build_parametric_model(self):
         pass
