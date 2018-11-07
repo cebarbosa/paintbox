@@ -25,8 +25,8 @@ from uncertainties import ufloat
 
 class BSF(object):
     def __init__(self, wave, flux, templates, adegree=None, mdegree=0,
-                 params=None, reddening=False, statmodel=None, Nssps=10,
-                 fluxerr=None, robust_fitting=True):
+                 params=None, reddening=False, fluxerr=None,
+                 robust_fitting=True):
         """ Model stellar populations with bayesian model. """
         self.wave = wave
         self.flux = flux
@@ -38,9 +38,6 @@ class BSF(object):
         self.params = params
         self.fluxerr = fluxerr
         self.robust_fitting = robust_fitting
-        # Defining statistical model
-        self.statmodel = "nssps" if statmodel is None else statmodel
-        self.Nssps = self.ntemplates if self.statmodel == "npfit" else Nssps
         self.model = pm.Model()
         #######################################################################
         # Preparing array for redenning
