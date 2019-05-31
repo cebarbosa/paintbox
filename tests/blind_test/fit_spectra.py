@@ -12,7 +12,6 @@ from __future__ import print_function, division, absolute_import
 
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
@@ -46,7 +45,6 @@ def plot_fitting(bsf, norm=1., spec=None):
         #                bsf.mdegree + 1)]).T
         wp = bsf.trace["mpoly"]
         w = bsf.trace["w"]
-    N = bsf.Nssps
     idxs = []
     for i, p in enumerate(bsf.params.colnames):
         idxs.append(bsf.trace["{}_idx".format(p)])
@@ -109,7 +107,11 @@ def fit_spectra(plot=False):
         norm = np.median(spec.flux[idx_norm])
         flux = spec.flux / norm
         bsf = BSF(wave, flux, templates, params=params, statmodel="npfit",
+<<<<<<< HEAD
+                  reddening=False, mdegree=1, robust_fitting=False)
+=======
                   reddening=False, mdegree=1, Nssps=10, robust_fitting=False)
+>>>>>>> 403f86be6be1a4dd585f19af4601b32ad6323a0f
         if not os.path.exists(dbname):
             with bsf.model:
                 db = pm.backends.Text(dbname)
