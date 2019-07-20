@@ -17,6 +17,7 @@ from astropy.io import fits
 from astropy.table import Table
 import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
+import pymc3 as pm
 
 from ppxf.ppxf_util import emission_lines
 
@@ -65,45 +66,57 @@ if __name__ == "__main__":
     nlines = line_names
     ############################################################################
     # Generating models with SEDModel
-    testvals_csp = {"Av": 0.1, "Rv": 4.05, "flux": 350, "Z": 0.1, "T": 10.2,
-                "alphaFe": 0.22, "NaFe": 0.15, "V": 4000, "sigma": 300}
-    testvals_em = {"flux": 2000, "V": 4000, "sigma": 50}
-    lower_csp = {"Av": 0, "Rv": 2., "flux": 0, "Z": params["Z"].min(),
-                 "T": params["T"].min(),  "alphaFe": params["alphaFe"].min(),
-                 "NaFe": params["NaFe"].min(), "V": 3000, "sigma": 0}
-    upper_csp = {"Av": 4, "Rv": 6., "flux": np.infty, "Z": params["Z"].max(),
-                 "T": params["T"].max(),  "alphaFe": params["alphaFe"].max(),
-                 "NaFe": params["NaFe"].max(), "V": 5000, "sigma": 500}
-    lower_em = {"flux": 0, "V": 3000, "sigma": 0.}
-    upper_em = {"flux": np.infty, "V": 5000, "sigma": 100.}
     nssps = [1]
     bsf = BSF(wave, flux, twave, templates, params, fluxerr=fluxerr,
               em_templates=gas_templates, em_names=line_names,
-              velscale=velscale, nssps=nssps, em_components=em_components)
-    input(404)
-    # Setting initial values according to testvals
-    p0 = []
-    lbounds = []
-    ubounds = []
-    for pnames in sed.parnames:
-        poptype = pnames[0].split("_")[0]
-        ps = ["_".join(p.split("_")[1:]).split("_")[0] for p in pnames]
-        testvals = testvals_csp if poptype.startswith("pop") else testvals_em
-        lower = lower_csp if poptype.startswith("pop") else lower_em
-        upper = upper_csp if poptype.startswith("pop") else upper_em
-        for p in ps:
-            p0.append(testvals[p])
-            lbounds.append(lower[p])
-            ubounds.append(upper[p])
-    bounds = (np.array(lbounds), np.array(ubounds))
-    p0 = np.array(p0)
-    # Calculating best model
-    def residue(p):
-        return (flux - sed(p)) / fluxerr
-    sol = least_squares(residue, p0, bounds=bounds, loss="linear")
-    p = sol["x"]
+              velscale=velscale, nssps=nssps, em_components=em_components,
+              z=0.012759)
+    bsf.build_model()
+    hmap_file = os.path.join(os.getcwd(), "hmap.npy")
+    with bsf.model:
+        m = pm.find_MAP()
+        np.save(hmap_file, m)
+    pfit = np.array([m[p] for p in bsf.parnames])
     plt.plot(wave.value, flux)
-    plt.plot(wave.value, sed(p))
-    plt.plot(wave.value, flux - sed(p))
+    plt.plot(wave.value, bsf.sed(pfit))
+    plt.plot(wave.value, flux - bsf.sed(pfit))
     plt.show()
+    # ##########################################################################
+    # testvals_csp = {"Av": 0.1, "Rv": 4.05, "flux": 350, "Z": 0.1, "T": 10.2,
+    #             "alphaFe": 0.22, "NaFe": 0.15, "V": 4000, "sigma": 300}
+    # testvals_em = {"flux": 2000, "V": 4000, "sigma": 50}
+    # lower_csp = {"Av": 0, "Rv": 2., "flux": 0, "Z": params["Z"].min(),
+    #              "T": params["T"].min(),  "alphaFe": params["alphaFe"].min(),
+    #              "NaFe": params["NaFe"].min(), "V": 3000, "sigma": 0}
+    # upper_csp = {"Av": 4, "Rv": 6., "flux": np.infty, "Z": params["Z"].max(),
+    #              "T": params["T"].max(),  "alphaFe": params["alphaFe"].max(),
+    #              "NaFe": params["NaFe"].max(), "V": 5000, "sigma": 500}
+    # lower_em = {"flux": 0, "V": 3000, "sigma": 0.}
+    # upper_em = {"flux": np.infty, "V": 5000, "sigma": 100.}
+    # # Performing least_squares fitting.
+    # # Setting initial values according to testvals
+    # p0 = []
+    # lbounds = []
+    # ubounds = []
+    # for pnames in bsf.sed.parnames:
+    #     poptype = pnames[0].split("_")[0]
+    #     ps = ["_".join(p.split("_")[1:]).split("_")[0] for p in pnames]
+    #     testvals = testvals_csp if poptype.startswith("pop") else testvals_em
+    #     lower = lower_csp if poptype.startswith("pop") else lower_em
+    #     upper = upper_csp if poptype.startswith("pop") else upper_em
+    #     for p in ps:
+    #         p0.append(testvals[p])
+    #         lbounds.append(lower[p])
+    #         ubounds.append(upper[p])
+    # bounds = (np.array(lbounds), np.array(ubounds))
+    # p0 = np.array(p0)
+    # # Calculating best model
+    # def residue(p):
+    #     return (flux - bsf.sed(p)) / fluxerr
+    # sol = least_squares(residue, p0, bounds=bounds, loss="linear")
+    # p = sol["x"]
+    # plt.plot(wave.value, flux)
+    # plt.plot(wave.value, bsf.sed(p))
+    # plt.plot(wave.value, flux - bsf.sed(p))
+    # plt.show()
 

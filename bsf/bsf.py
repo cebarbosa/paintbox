@@ -12,6 +12,7 @@ from __future__ import print_function, division
 
 import numpy as np
 import astropy.units as u
+import astropy.constants as const
 from scipy.special import gamma, digamma
 import theano.tensor as tt
 import pymc3 as pm
@@ -21,8 +22,8 @@ from models import SEDModel
 class BSF():
     def __init__(self, wave, flux, twave, templates, params,
                  fluxerr=None, em_templates=None, em_names=None,
-                 velscale=None, components=2, em_components=None,
-                 wave_unit=None):
+                 velscale=None, nssps=2, em_components=None,
+                 wave_unit=None, z=0., loglike="studT"):
         """ Model observations with SSP models using hierarchical Bayesian
         approach and probabilisti programming.
 
@@ -47,138 +48,109 @@ class BSF():
             Uncertainties for the modeled flux.
 
         """
-        self.wave = wave
-        self.flux = np.atleast_2d(flux)
-        self.twave = twave
+        self.loglike = loglike
+        # Observed parameters
+        self.flux = np.atleast_1d(flux)
+        self.fluxerr = np.ones_like(self.flux) if fluxerr is None else \
+                       fluxerr
+        self.z = z
+        # SSP templates
         self.templates = templates
         self.params = params
-
-        # Check if rebinning is necessary
-        self.rebin = False if np.array_equal(self.wave, self.twave) else True
-
-        self.fluxerr = 1. if fluxerr is None else np.atleast_2d(fluxerr)
-
-        self.nloc = len(self.flux)
-
+        # Emission line templates
         self.em_templates = em_templates
         self.em_names = em_names
-        self.ngas = len(self.em_names) if self.em_names is not None else 0
-        self.velscale = 1. * u.km / u.s if velscale is None else velscale
-        self.components = np.atleast_1d(components)
         self.em_components = em_components
         if self.em_components is not None:
             self.em_components = np.atleast_1d(em_components)
-        self.spm = SEDModel(self.wave_temp, self.params, self.templates,
-                            components=self.components, velscale=velscale,
+        ########################################################################
+        # Setting wavelength units
+        self.wave_unit = u.angstrom if wave_unit is None else wave_unit
+        if hasattr(wave, "unit"):
+            self.wave = wave
+        else:
+            self.wave = wave * self.wave_unit
+        if hasattr(twave, "unit"):
+            self.twave = twave
+        else:
+            self.twave = twave * self.wave_unit
+        ########################################################################
+        # Check if rebinning is necessary
+        self.rebin = False if np.array_equal(self.wave, self.twave) else True
+        self.velscale = 1. * u.km / u.s if velscale is None else velscale
+        self.nssps = np.atleast_1d(nssps)
+        self.sed = SEDModel(self.twave, self.params, self.templates,
+                            nssps=self.nssps, velscale=velscale,
                             wave_out=wave, em_templates=self.em_templates,
                             em_names=em_names,
                             em_components=self.em_components)
+        self.parnames = [item for sublist in self.sed.parnames for item in
+                         sublist]
 
     def build_model(self):
         print("Generating model...")
-        # Setting prior parameters for stellar populations
-        plower = np.array([self.params[col].min() for col in
-                          self.params.colnames])
-        pupper = np.array([self.params[col].max() for col in
-                          self.params.colnames])
-        pdelta = 0.5 * (pupper - plower)
-        pmean = 0.5 * (pupper + plower)
-        # Setting properties of priors for the logarithm of the flux
-        m0 = -2.5 * np.log10(np.median(self.data) / np.median(self.templates))
-        m0sd = np.sqrt(np.log10(self.data.std())**2 +
-                        np.log10(self.templates.std())**2)
-        # Setting prior parameters for LOSVD
-        V = 0
-        deltaV = 500
-        sigmax = 500
+        # Estimating scale to be used for magnitudes
+        m0 = -2.5 * np.log10(np.median(self.flux) / np.median(self.templates))
+        # Estimating scale for emission lines
+        if self.em_templates is not None:
+            m0em = np.median(np.max(self.em_templates, axis=1))
+        # Estimating velocity from input redshift
+        beta = (np.power(self.z + 1, 2) - 1) / (np.power(self.z + 1, 2) + 1)
+        V0 = const.c.to(self.velscale.unit) * beta
+        # Building statistical model
         self.model = pm.Model()
         with self.model:
-            for k, npop in enumerate(self.components):
-                # Extinction
-                Rv = pm.Normal("Rv{}".format(k), mu=4.05, sd=0.8,
-                               shape=self.nloc, testval=4.05)
-                MAv = pm.HalfNormal("MAv", sd=0.5, testval=0.2)
-                SAv = pm.Gamma("SAv", alpha=2., beta=1., testval=0.2)
-                BNormal = pm.Bound(pm.Normal, lower=0.)
-                Av = BNormal("Av", mu=MAv, sd=SAv, shape=self.nloc, testval=0.2)
-                theta = [Av, Rv]
-                # Stellar population parameters
-                for j in range(npop):
-                    # Unobscured flux
-                    mag = pm.Normal("mag{}_{}".format(k, j),
-                                    mu=m0, sd=2. * m0sd, shape=self.nloc)
-                    flux = pm.math.exp(-0.4 * mag * np.log(10))
-                    theta.append(flux)
-                    for i, param in enumerate(self.params.colnames):
-                        BNormal = pm.Bound(pm.Normal, lower=plower[i],
-                                           upper=pupper[i])
-                        M = BNormal("M{}{}{}".format(param, k, j), mu=pmean[i],
-                                    sd=pdelta[i])
-                        S = pm.Gamma("S{}{}{}".format(param, k, j), alpha=2.,
-                                     beta=1 / pdelta[i])
-                        v = BNormal("{}{}{}".format(param, k, j), mu=M,
-                                    sd=S, shape=self.nloc)
-                        theta.append(v)
-                if npop > 0:
-                    # Systemic velocity
-                    Vsyst = pm.Normal("MV{}".format(k), mu=V, sd=deltaV)
-                    Svsyst = pm.Gamma("SV{}".format(k), alpha=2.,
-                                   beta=1/deltaV)
-                    vsyst = pm.Normal("vsyst{}".format(k), mu=Vsyst,
-                                      sd=Svsyst, shape=self.nloc)
-                    theta.append(vsyst)
-                    # Velocity dispersion
-                    Msigma = pm.HalfNormal("Msigma{}".format(k),
-                                           sd=sigmax)
-                    Ssigma = pm.Gamma("Ssigma{}".format(k), alpha=2.,
-                                      beta=1./sigmax)
-                    BNormal = pm.Bound(pm.Normal, lower=0)
-                    sigma = BNormal("sigma{}".format(k,j), mu=Msigma,
-                                    sd=Ssigma, shape=self.nloc)
-                    theta.append(sigma)
-            # Priors for the emission line templates
-            if self.em_components is not None:
-                for k in np.unique(self.em_components):
-                    idx = np.where(self.em_components == k)[0]
-                    em_templates = self.em_templates[idx]
-                    em_names = self.em_names[idx]
-                    peaks = np.max(em_templates, axis=1)
-                    m0s = -2.5 * np.log10(np.median(self.data) / peaks)
-                    for i, emline in enumerate(em_names):
-                        mag = pm.Normal(emline, mu=m0s[i], sd=3.,
-                                        shape=self.nloc)
-                        flux = pm.math.exp(-0.4 * mag * np.log(10))
-                        theta.append(flux)
-                    if k >= 0:
-                        # Systemic velocity
-                        Vsyst = pm.Normal("MVgas{}".format(k), mu=V, sd=deltaV)
-                        Svsyst = pm.Gamma("SVgas{}".format(k), alpha=2.,
-                                       beta=1/deltaV)
-                        vsyst = pm.Normal("vgas{}".format(k), mu=Vsyst,
-                                          sd=Svsyst, shape=self.nloc)
-                        theta.append(vsyst)
-                        # Velocity dispersion
-                        Msigma = pm.HalfNormal("Msgas{}".format(k),
-                                               sd=sigmax)
-                        Ssigma = pm.Gamma("Ssgas{}".format(k), alpha=2.,
-                                          beta=1./sigmax)
+            theta = []
+            for par in self.parnames:
+                comptype = par.split("_", 1)[0]
+                vartype = par.split("_")[2]
+                if comptype == "sp":
+                    if vartype == "Av":
+                        Av = pm.HalfNormal(par, sd=1.)
+                        theta.append(Av)
+                    elif vartype == "Rv":
                         BNormal = pm.Bound(pm.Normal, lower=0)
-                        sigma = BNormal("sgas{}".format(k), mu=Msigma,
-                                        sd=Ssigma, shape=self.nloc)
+                        Rv = BNormal(par, mu=4.05, sd=0.8)
+                        theta.append(Rv)
+                    elif vartype == "flux":
+                        magkey = par.replace("flux", "mag")
+                        mag = pm.Normal(magkey, mu=m0, sd=3.)
+                        flux = pm.Deterministic(par, pm.math.exp(-0.4 * mag *
+                                                             np.log(10)))
+                        theta.append(flux)
+                    elif vartype in self.params.colnames:
+                        param = pm.Uniform(par, lower=self.params[
+                            vartype].min(), upper=self.params[vartype].max())
+                        theta.append(param)
+                    elif vartype == "V":
+                        V = pm.Normal(par, mu=V0.value, sd=1000.)
+                        theta.append(V)
+                    elif vartype == "sigma":
+                        sigma = pm.HalfNormal(par, sd=300)
+                        theta.append(sigma)
+                elif comptype == "em":
+                    if vartype == "flux":
+                        magkey = par.replace("flux", "mag")
+                        mag = pm.Normal(magkey, mu=m0em, sd=3.)
+                        flux = pm.Deterministic(par, pm.math.exp(-0.4 * mag *
+                                                             np.log(10)))
+                        theta.append(flux)
+                    elif vartype == "V":
+                        V = pm.Normal(par, mu=V0.value, sd=1000.)
+                        theta.append(V)
+                    elif vartype == "sigma":
+                        sigma = pm.HalfNormal(par, sd=80)
                         theta.append(sigma)
             # Setting degrees-of-freedom of likelihood
             BGamma = pm.Bound(pm.Gamma, lower=2.01)
-            nu = BGamma("nu", alpha=2., beta=.1, shape=self.nloc,
-                          testval=10.)
+            nu = BGamma("nu", alpha=2., beta=.1, testval=10.)
             theta.append(nu)
-            theta = tt.as_tensor_variable(theta).T
-            # Building the likelihood
-            for i in range(self.nloc):
-                logl = LogLikeWithGrad(self.data[i],
-                                       self.wave, self.errors[i], self.spm)
-                # use a DensityDist
-                pm.DensityDist('likelihood{}'.format(i), lambda v: logl(v),
-                               observed={'v': theta[i]})
+            theta = tt.as_tensor_variable(theta)
+            logl = LogLikeWithGrad(self.flux, self.wave, self.fluxerr,
+                                   self.sed, loglike=self.loglike)
+            # use a DensityDist
+            pm.DensityDist('likelihood', lambda v: logl(v),
+                           observed={'v': theta})
 
 # define a theano Op for our likelihood function
 class LogLikeWithGrad(tt.Op):
@@ -186,12 +158,16 @@ class LogLikeWithGrad(tt.Op):
     itypes = [tt.dvector] # expects a vector of parameter values when called
     otypes = [tt.dscalar] # outputs a single scalar value (the log likelihood)
 
-    def __init__(self, data, x, sigma, stpop):
+    def __init__(self, data, x, sigma, stpop, loglike=None):
         self.data = data
         self.x = x
         self.sigma = sigma
         self.stpop = stpop
-        self.likelihood = StudTLogLike(self.data, self.sigma, self.stpop)
+        self.loglike = "studT" if loglike is None else "normal"
+        if self.loglike == "studT":
+            self.likelihood = StudTLogLike(self.data, self.sigma, self.stpop)
+        elif self.loglike == "normal":
+            self.likelihood = NormalLogLike(self.data, self.sigma, self.stpop)
         # initialise the gradient Op (below)
         self.logpgrad = LogLikeGrad(self.likelihood)
 
@@ -247,23 +223,23 @@ class StudTLogLike():
         e_i = self.func(theta[:-1]) - self.data
         x = 1. + np.power(e_i / self.sigma, 2.) / (nu - 2)
         LLF = self.N * np.log(gamma(0.5 * (nu + 1)) /
-                         np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu)) + \
-              - 0.5 * (nu + 1) * np.sum(np.log(x))
-        # - 0.5 * np.sum(np.log(sigma**2)) # Constant
+                         np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu))  \
+             - 0.5 * (nu + 1) * np.sum(np.log(x)) \
+             - 0.5 * np.sum(np.log(self.sigma**2)) # Constant
         return float(LLF)
 
     def gradient(self, theta):
         grad = np.zeros(self.func.nparams + 1)
         nu = theta[-1]
         # d loglike / d theta
-        const = -0.5 * (nu + 1)
         e_i = self.func(theta[:-1]) - self.data
         x = np.power(e_i / self.sigma, 2.) / (nu - 2.)
         term1 = 1 / (1 + x)
         term2 = 2 * e_i / (self.sigma**2) / (nu-2)
         term12 = term1 * term2
         sspgrad = self.func.gradient(theta[:-1])
-        grad[:-1] = const * np.sum(term12[np.newaxis, :] * sspgrad, axis=1)
+        grad[:-1] = -0.5 * (nu + 1) * np.sum(term12[np.newaxis, :] *
+                                             sspgrad, axis=1)
         # d loglike / d nu
         nuterm1 = 0.5 * self.N * digamma(0.5 * (nu + 1))
         nuterm2 = - 0.5 * self.N / (nu - 2)
@@ -272,4 +248,25 @@ class StudTLogLike():
         nuterm5 = 0.5 * (nu + 1) * np.power(nu - 2, -2) * \
                   np.sum(np.power(e_i / self.sigma, 2) * term1)
         grad[-1] = nuterm1 + nuterm2 + nuterm3 + nuterm4 + nuterm5
+        return grad
+
+class NormalLogLike():
+    def __init__(self, data, sigma, func):
+        self.data = data
+        self.sigma = sigma
+        self.func = func
+        self.N = len(data)
+        self.nparams = self.func.nparams
+
+    def __call__(self, theta):
+        e_i = self.func(theta) - self.data
+        LLF = - 0.5 * self.N * np.log(2 * np.pi) + \
+              - 0.5 * np.sum(np.log(self.sigma ** 2)) + \
+              - 0.5 * np.sum(np.power(e_i / self.sigma, 2))
+        return float(LLF)
+
+    def gradient(self, theta):
+        e_i = self.func(theta[:-1]) - self.data
+        grad = - np.sum(np.power(e_i / self.sigma, 2.)[np.newaxis, :] *
+                        self.func.gradient(theta), axis=1)
         return grad

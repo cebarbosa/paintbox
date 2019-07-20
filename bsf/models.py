@@ -126,7 +126,7 @@ class SEDModel():
                             npop=abs(comp))
             self.idxs.append(csp.nparams + self.idxs[-1])
             self.pops.append(csp)
-            self.parnames.append(["pop{}_{}".format(i, p) for p in
+            self.parnames.append(["sp_{}_{}".format(i, p) for p in
                                   csp.parnames])
         if self.em_templates is None:
             self.nparams = self.idxs[-1]
@@ -147,7 +147,7 @@ class SEDModel():
                                    self.em_names[idx], self.velscale)
             self.idxs.append(em.nparams + self.idxs[-1])
             self.pops.append(em)
-            self.parnames.append(["em{}_{}".format(i, p) for p in em.parnames])
+            self.parnames.append(["em_{}_{}".format(i, p) for p in em.parnames])
         self.nparams = self.idxs[-1]
 
     def __call__(self, theta):
