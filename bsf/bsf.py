@@ -17,13 +17,13 @@ from scipy.special import gamma, digamma
 import theano.tensor as tt
 import pymc3 as pm
 
-from models import SEDModel
+from .models import SEDModel
 
 class BSF():
     def __init__(self, wave, flux, twave, templates, params,
                  fluxerr=None, em_templates=None, em_names=None,
                  velscale=None, nssps=2, em_components=None,
-                 wave_unit=None, z=0., loglike="studT"):
+                 wave_unit=None, z=0., loglike="normal"):
         """ Model observations with SSP models using hierarchical Bayesian
         approach and probabilisti programming.
 
@@ -48,7 +48,7 @@ class BSF():
             Uncertainties for the modeled flux.
 
         """
-        self.loglike = loglike
+        self.loglike = loglike.lower()
         # Observed parameters
         self.flux = np.atleast_1d(flux)
         self.fluxerr = np.ones_like(self.flux) if fluxerr is None else \
@@ -126,12 +126,14 @@ class BSF():
                         V = pm.Normal(par, mu=V0.value, sd=1000.)
                         theta.append(V)
                     elif vartype == "sigma":
-                        sigma = pm.HalfNormal(par, sd=300)
+                        BHNormal = pm.Bound(pm.HalfNormal,
+                                            lower= 0.5 * self.velscale.value)
+                        sigma = BHNormal(par, sd=300, testval=200.)
                         theta.append(sigma)
                 elif comptype == "em":
                     if vartype == "flux":
                         magkey = par.replace("flux", "mag")
-                        mag = pm.Normal(magkey, mu=m0em, sd=3.)
+                        mag = pm.Normal(magkey, mu=m0em, sd=3., testval=m0em+1)
                         flux = pm.Deterministic(par, pm.math.exp(-0.4 * mag *
                                                              np.log(10)))
                         theta.append(flux)
@@ -139,12 +141,16 @@ class BSF():
                         V = pm.Normal(par, mu=V0.value, sd=1000.)
                         theta.append(V)
                     elif vartype == "sigma":
-                        sigma = pm.HalfNormal(par, sd=80)
+                        BHNormal = pm.Bound(pm.HalfNormal,
+                                            lower= 0.5 * self.velscale.value)
+                        sigma = BHNormal(par, sd=80, testval=40)
                         theta.append(sigma)
             # Setting degrees-of-freedom of likelihood
-            BGamma = pm.Bound(pm.Gamma, lower=2.01)
-            nu = BGamma("nu", alpha=2., beta=.1, testval=10.)
-            theta.append(nu)
+            if self.loglike == "studt":
+                numax = 20.
+                BGamma = pm.Bound(pm.Gamma, lower=2.01)
+                nu = BGamma("nu", alpha=2., beta=1/numax, testval=0.5 * numax)
+                theta.append(nu)
             theta = tt.as_tensor_variable(theta)
             logl = LogLikeWithGrad(self.flux, self.wave, self.fluxerr,
                                    self.sed, loglike=self.loglike)
@@ -163,8 +169,8 @@ class LogLikeWithGrad(tt.Op):
         self.x = x
         self.sigma = sigma
         self.stpop = stpop
-        self.loglike = "studT" if loglike is None else "normal"
-        if self.loglike == "studT":
+        self.loglike = loglike
+        if self.loglike == "studt":
             self.likelihood = StudTLogLike(self.data, self.sigma, self.stpop)
         elif self.loglike == "normal":
             self.likelihood = NormalLogLike(self.data, self.sigma, self.stpop)
@@ -261,12 +267,14 @@ class NormalLogLike():
     def __call__(self, theta):
         e_i = self.func(theta) - self.data
         LLF = - 0.5 * self.N * np.log(2 * np.pi) + \
-              - 0.5 * np.sum(np.log(self.sigma ** 2)) + \
-              - 0.5 * np.sum(np.power(e_i / self.sigma, 2))
+              - 0.5 * np.sum(np.power(e_i / self.sigma, 2)) \
+              - 0.5 * np.sum(np.log(self.sigma ** 2))
         return float(LLF)
 
     def gradient(self, theta):
-        e_i = self.func(theta[:-1]) - self.data
-        grad = - np.sum(np.power(e_i / self.sigma, 2.)[np.newaxis, :] *
+        print(len(theta))
+        input()
+        e_i = self.func(theta) - self.data
+        grad = - np.sum(e_i / np.power(self.sigma, 2.)[np.newaxis, :] *
                         self.func.gradient(theta), axis=1)
         return grad
