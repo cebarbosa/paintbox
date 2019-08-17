@@ -24,7 +24,7 @@ class BSF():
     def __init__(self, wave, flux, twave, templates, params,
                  fluxerr=None, em_templates=None, em_names=None,
                  velscale=None, nssps=2, em_components=None,
-                 wave_unit=None, z=0., loglike="studt", adegree=None):
+                 wave_unit=None, z=0., loglike="studt", adegree=-1):
         """ Model observations with SSP models using hierarchical Bayesian
         approach and probabilisti programming.
 
@@ -50,6 +50,7 @@ class BSF():
 
         """
         self.loglike = loglike.lower()
+        self.adegree = adegree
         # Observed parameters
         self.flux = np.atleast_1d(flux)
         self.fluxerr = np.ones_like(self.flux) if fluxerr is None else \
@@ -84,7 +85,8 @@ class BSF():
                             nssps=self.nssps, velscale=velscale,
                             wave_out=wave, em_templates=self.em_templates,
                             em_names=em_names,
-                            em_components=self.em_components)
+                            em_components=self.em_components,
+                            adegree = self.adegree)
         self.parnames = [item for sublist in self.sed.parnames for item in
                          sublist]
 
@@ -99,6 +101,7 @@ class BSF():
         # Estimating velocity from input redshift
         beta = (np.power(self.z + 1, 2) - 1) / (np.power(self.z + 1, 2) + 1)
         V0 = const.c.to(self.velscale.unit) * beta
+        vscale = self.velscale.value
         # Building statistical model
         self.model = pm.Model()
         with self.model:
@@ -117,7 +120,7 @@ class BSF():
                         theta.append(Rv)
                     elif pname == "flux":
                         magkey = par.replace("flux", "mag")
-                        mag = pm.Normal(magkey, mu=m0, sd=2., testval=m0)
+                        mag = pm.Normal(magkey, mu=m0, sd=1., testval=m0)
                         flux = pm.Deterministic(par, pm.math.exp(-0.4 * mag *
                                                              np.log(10)))
                         theta.append(flux)
@@ -131,14 +134,15 @@ class BSF():
                         V = pm.Normal(par, mu=V0.value, sd=1000.)
                         theta.append(V)
                     elif pname == "sigma":
-                        BHNormal = pm.Bound(pm.HalfNormal,
-                                            lower= 0.5 * self.velscale.value)
-                        sigma = BHNormal(par, sd=300, testval=200.)
+                        BHNormal = pm.Bound(pm.HalfNormal, lower= 0.5 * vscale,
+                                            upper=1000.)
+                        sigma = BHNormal(par, sd=200,
+                                         testval=2 * vscale)
                         theta.append(sigma)
                 else:
                     if pname == "flux":
                         magkey = par.replace("flux", "mag")
-                        mag = pm.Normal(magkey, mu=m0em, sd=3., testval=m0em)
+                        mag = pm.Normal(magkey, mu=m0em, sd=1., testval=m0em)
                         flux = pm.Deterministic(par, pm.math.exp(-0.4 * mag *
                                                              np.log(10)))
                         theta.append(flux)
@@ -146,9 +150,9 @@ class BSF():
                         V = pm.Normal(par, mu=V0.value, sd=1000.)
                         theta.append(V)
                     elif pname == "sigma":
-                        BHNormal = pm.Bound(pm.HalfNormal,
-                                            lower= 0.5 * self.velscale.value)
-                        sigma = BHNormal(par, sd=80, testval=40)
+                        BHNormal = pm.Bound(pm.HalfNormal, lower= 0.5 * vscale,
+                                            upper=1000.)
+                        sigma = BHNormal(par, sd=80, testval=2 * vscale)
                         theta.append(sigma)
             # Setting degrees-of-freedom of likelihood
             if self.loglike == "studt":
@@ -293,7 +297,7 @@ class SEDModel():
     def __init__(self, wave, params, templates, nssps=2,
                  velscale=None, wave_out=None, wave_unit=None,
                  em_templates=None, em_components=None,
-                 em_names=None):
+                 em_names=None, adegree=-1):
         """ SED model based on combination of SSPs, emission lines, sky lines
         and their LOSVD.
 
@@ -365,6 +369,7 @@ class SEDModel():
             gradient(p): Gradient of the SED function with parameters p
 
          """
+        self.adegree = adegree
         ########################################################################
         # Setting wavelength units
         self.wave_unit = u.angstrom if wave_unit is None else wave_unit
@@ -429,6 +434,11 @@ class SEDModel():
                 self.idxs.append(em.nparams + self.idxs[-1])
                 self.pops.append(em)
                 self.parnames.append(parnames)
+        if self.adegree >= 0:
+            apoly = APoly(self.wave, self.adegree)
+            self.pops.append(apoly)
+            self.parnames.append(apoly.parnames)
+            self.idxs.append(apoly.nparams + self.idxs[-1])
         self.nparams = self.idxs[-1]
 
     def __call__(self, theta):
@@ -671,9 +681,11 @@ class APoly():
         self.wave = wave
         self.degree = degree
         self.x = np.linspace(-1, 1, len(self.wave))
-        self.mpoly = np.zeros((self.mdegree + 1, len(_)))
-        for i in range(self.mdegree + 1):
-            self.mpoly[i] = legendre(i)(_)
+        self.mpoly = np.zeros((self.degree + 1, len(self.x)))
+        for i in np.arange(self.degree + 1):
+            self.mpoly[i] = legendre(i)(self.x)
+        self.parnames = ["acoeff_{}".format(i) for i in np.arange(degree+1)]
+        self.nparams = len(self.parnames)
 
     def __call__(self, theta):
         return np.dot(theta, self.poly)
