@@ -102,6 +102,9 @@ class BSF():
         beta = (np.power(self.z + 1, 2) - 1) / (np.power(self.z + 1, 2) + 1)
         V0 = const.c.to(self.velscale.unit) * beta
         vscale = self.velscale.value
+        # Estimating scale of polynomial
+        amp = np.median(self.flux) / snr(self.flux)
+
         # Building statistical model
         self.model = pm.Model()
         with self.model:
@@ -110,9 +113,12 @@ class BSF():
                 psplit = par.split("_")
                 pname = psplit[0]
                 comp = int(psplit[1])
-                if comp < len(self.nssps): # SSP components
+                if pname == "acoeff":
+                    a = pm.Normal(par, mu=0, sd=amp)
+                    theta.append(a)
+                elif comp < len(self.nssps): # SSP components
                     if pname == "Av":
-                        Av = pm.HalfNormal(par, sd=.4, testval=0.2)
+                        Av = pm.HalfNormal(par, sd=.2, testval=0.1)
                         theta.append(Av)
                     elif pname == "Rv":
                         BNormal = pm.Bound(pm.Normal, lower=0)
@@ -240,8 +246,8 @@ class StudTLogLike():
                          np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu))  \
              - 0.5 * (nu + 1) * np.sum(np.log(x)) \
              - 0.5 * np.sum(np.log(self.sigma**2)) # Constant
-        if np.isnan(LLF):
-            print("Nan loglikelihood: {}".format(theta))
+        # if np.isnan(LLF):
+        #     print("Nan loglikelihood: {}".format(theta))
         return float(LLF)
 
     def gradient(self, theta):
@@ -449,6 +455,8 @@ class SEDModel():
             sed += s
         if not self.rebin:
             return sed
+        print(self.wave_out.to("AA").value)
+        print(self.wave.to("AA").value)
         sed = spectres(self.wave_out.to("AA").value,
                        self.wave.to("AA").value, sed)
         return sed
@@ -681,14 +689,24 @@ class APoly():
         self.wave = wave
         self.degree = degree
         self.x = np.linspace(-1, 1, len(self.wave))
-        self.mpoly = np.zeros((self.degree + 1, len(self.x)))
+        self.apoly = np.zeros((self.degree + 1, len(self.x)))
         for i in np.arange(self.degree + 1):
-            self.mpoly[i] = legendre(i)(self.x)
+            self.apoly[i] = legendre(i)(self.x)
         self.parnames = ["acoeff_{}".format(i) for i in np.arange(degree+1)]
         self.nparams = len(self.parnames)
 
     def __call__(self, theta):
-        return np.dot(theta, self.poly)
+        return np.dot(theta, self.apoly)
 
     def gradient(self, theta):
-        return self.poly
+        return self.apoly
+
+def snr(flux, axis=0):
+    """ Calculates the S/N ratio of a spectra.
+
+    Translated from the IDL routine der_snr.pro """
+    signal = np.nanmedian(flux, axis=axis)
+    noise = 1.482602 / np.sqrt(6.) * np.nanmedian(np.abs(2.*flux - \
+           np.roll(flux, 2, axis=axis) - np.roll(flux, -2, axis=axis)), \
+           axis=axis)
+    return signal, noise, signal / noise
