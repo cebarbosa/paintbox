@@ -5,7 +5,7 @@ Created on 27/11/19
 
 Author : Carlos Eduardo Barbosa
 
-Classes containing extinctio laws.
+Classes containing extinction laws.
 
 """
 from __future__ import print_function, division
@@ -13,14 +13,21 @@ from __future__ import print_function, division
 import numpy as np
 import astropy.units as u
 
+from .operators import SEDSum, SEDMul
+
 class CCM89:
     """ Cardelli, Clayton and Mathis (1989)"""
-    def __init__(self, wave):
+    def __init__(self, wave, unit=None):
         if hasattr(wave, "unit"):
-            self.wave = wave
+            self.wave = wave.value
+            self.unit = wave.unit
         else:
-            self.wave = wave * u.AA
-        x = 1 / wave.to(u.micrometer).value
+            self.wave = wave
+            self.unit = u.AA if unit is None else unit
+        x = 1 / (self.wave * self.unit).to(u.micrometer).value
+        self.parnames = ["Av", "Rv"]
+        self.nparams = 2
+
         def anir(x):
             return 0.574 * np.power(x, 1.61)
 
@@ -51,6 +58,7 @@ class CCM89:
             Fb = 0.2130 * np.power(x - 5.9, 2) + 0.1207 * np.power(x - 5.9, 3)
             b = -3.090 + 1.825 * x + 1.206 / (np.power(x - 4.62, 2) + 0.263)
             return np.where(x < 5.9, b, b + Fb)
+
         nir = (0.3 <= x) & (x <= 1.1)
         optical = (1.1 < x) & (x <= 3.3)
         uv = (3.3 < x) & (x <= 8)
@@ -63,6 +71,12 @@ class CCM89:
         """ theta = (Av, Rv)"""
         return np.power(10, -0.4 * theta[0] * (self.a + self.b / theta[1]))
 
+    def __add__(self, o):
+        return SEDSum(self, o)
+
+    def __mul__(self, o):
+        return SEDMul(self, o)
+
     def gradient(self, theta):
         grad = np.zeros((2, len(self.wave)))
         A = self.__call__(theta)
@@ -73,12 +87,14 @@ class CCM89:
 
 class C2000():
     """ Calzetti et al. (2000)"""
-    def __init__(self, wave):
+    def __init__(self, wave, unit=None):
         if hasattr(wave, "unit"):
-            self.wave = wave
+            self.wave = wave.value
+            self.unit = wave.unit
         else:
-            self.wave = wave * u.AA
-        x = 1 / wave.to(u.micrometer).value
+            self.wave = wave
+            self.unit = u.AA if unit is None else unit
+        x = 1 / (self.wave * self.unit).to(u.micrometer).value
         self.kappa = np.where(self.wave > 0.63 * u.micrometer,
                               2.659 * (-1.857 + 1.040 * x), \
                               2.659 * (-2.156 + 1.509 * x - 0.198 * x * x
@@ -86,6 +102,12 @@ class C2000():
 
     def __call__(self, theta):
         return np.power(10, -0.4 * theta[0] * (1. + self.kappa / theta[1]))
+
+    def __add__(self, o):
+        return SEDSum(self, o)
+
+    def __mul__(self, o):
+        return SEDMul(self, o)
 
     def gradient(self, theta):
         grad = np.zeros((2, len(self.wave)))

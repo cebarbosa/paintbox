@@ -12,13 +12,13 @@ import os
 import sys
 
 import numpy as np
-import astropy.units as u
 from astropy.io import fits
 from astropy.table import Table
 import matplotlib.pyplot as plt
 import pymc3 as pm
 from tqdm import tqdm
 from spectres import spectres
+import ppxf
 from ppxf.ppxf_util import log_rebin
 import theano.tensor as tt
 
@@ -26,51 +26,25 @@ from ppxf.ppxf_util import emission_lines
 
 sys.path.append("../bsf")
 
-from bsf.sed_models import SSP, EmissionLines, LOSVDConv, Rebin
-from bsf.likelihoods import LogLike
+import bsf
 
-class SSPPlusEmission():
-    def __init__(self, wave, ssp, emission, velscale):
-        self.wave = wave
-        self.ssp = ssp
-        self.emission = emission
-        self.velscale = velscale
-        self.wave = self.ssp.wave
-        self.parnames = self.ssp.parnames + self.emission.parnames
-        self.shape_grad = (len(self.parnames), len(self.wave))
-        self._n =  len(self.ssp.parnames)
-
-    def __call__(self, theta):
-        p1 = theta[:self._n]
-        p2 = theta[self._n:]
-        ssp = self.ssp(p1)[0]
-        emission = self.emission(p2)
-        return ssp + emission
-
-    def gradient(self, theta):
-        p1 = theta[:self._n]
-        p2 = theta[self._n:]
-        ssp = self.ssp(p1)
-        emission = self.emission(p2)
-        sspgrad = self.ssp.gradient(p1)
-        emission_grad = self.emission.gradient(p2)
-        grad = np.zeros(self.shape_grad)
-        grad[:self._n, :] = emission * sspgrad
-        grad[self._n:, :] = ssp * emission_grad
-        return grad
-
-def build_model(wave, flux, fluxerr, spec, params, loglike=None):
+def build_model(wave, flux, fluxerr, spec, params, emlines, porder,
+                loglike=None):
     loglike = "normal2" if loglike is None else loglike
     model = pm.Model()
-    emlines = ['Hbeta', 'Halpha', 'SII6716', 'SII6731',
-               'OIII5007d', 'OI6300d', 'NII6583d']
+    flux = flux.astype(np.float)
     with model:
         theta = []
         for param in params.colnames:
-            vmin = params[param].data.min()
-            vmax = params[param].data.max()
+            vmin = params[param].observed.min()
+            vmax = params[param].observed.max()
             v = pm.Uniform(param, lower=vmin, upper=vmax)
             theta.append(v)
+        Av = pm.Exponential("Av", lam=1 / 0.4, testval=0.1)
+        theta.append(Av)
+        BNormal = pm.Bound(pm.Normal, lower=0)
+        Rv = BNormal("Rv", mu=3.1, sd=1., testval=3.1)
+        theta.append(Rv)
         for em in emlines:
             v = pm.HalfNormal(em, sigma=1)
             theta.append(v)
@@ -79,6 +53,11 @@ def build_model(wave, flux, fluxerr, spec, params, loglike=None):
         theta.append(V)
         sigma = pm.HalfNormal("sigma", sd=200)
         theta.append(sigma)
+        p0 = pm.HalfNormal("p0", sd=2.)
+        theta.append(p0)
+        for n in range(porder):
+            pn = pm.Normal("p{}".format(n+1), mu=0., sd=1.)
+            theta.append(pn)
         if loglike == "studt":
             nu = pm.Uniform("nu", lower=2.01, upper=50, testval=10.)
             theta.append(nu)
@@ -87,38 +66,10 @@ def build_model(wave, flux, fluxerr, spec, params, loglike=None):
             s = pm.Deterministic("S", 1. + pm.math.exp(x))
             theta.append(s)
         theta = tt.as_tensor_variable(theta).T
-        logl = LogLike(flux, wave, fluxerr, spec, loglike=loglike)
+        logl = bsf.LogLike(flux, wave, fluxerr, spec, loglike=loglike)
         pm.DensityDist('loglike', lambda v: logl(v),
                        observed={'v': theta})
-
     return model
-
-def plot_MAP(bsf, mapfile):
-    """ Plot the SED model for MAP estimate"""
-    x = np.load(mapfile).item() # see: https://stackoverflow.com/questions/40219946/python-save-dictionaries-through-numpy-save
-    sol = []
-    for par in bsf.parnames:
-        print(par, float(x[par]))
-        sol.append(x[par])
-    sol = np.array(sol)
-    ax = plt.subplot(111)
-    plt.plot(bsf.wave, bsf.flux + bsf.fluxerr)
-    plt.plot(bsf.wave, bsf.flux - bsf.fluxerr, c="C0")
-    ax.plot(bsf.wave, bsf.sed(sol), "-", c="C1")
-    plt.show()
-
-def load_traces(db, params, alpha=15.865):
-    if not os.path.exists(db):
-        return None
-    ntraces = len(os.listdir(db))
-    data = [np.load(os.path.join(db, _, "samples.npz")) for _ in
-            os.listdir(db)]
-    traces = []
-    for param in params:
-        v = np.vstack([data[num][param] for num in range(ntraces)]).flatten()
-        traces.append(v)
-    traces = np.column_stack(traces)
-    return traces
 
 def example_full_spectral_fitting():
     """ Example of application of BSF for full spectral fitting of a single
@@ -128,52 +79,74 @@ def example_full_spectral_fitting():
     a resolution FWHM=2.95 for MUSE data and templates have been rebinned to
     a velocity scale of 200 km/s.
     """
-    velscale = 200
+    velscale = 200 # km/s
     data = Table.read("ngc3311_center.fits")
-    wave = data["wave"].data
-    flux = data["flux"].data
-    fluxerr = data["fluxerr"].data
+    wave = data["wave"].observed
+    flux = data["flux"].observed
+    fluxerr = data["fluxerr"].observed
     # Resampling to fixed velocity scale
-    logLam = log_rebin([wave[0], wave[-1]], flux, velscale=velscale)[1]
-    lam = np.exp(logLam)
-    idx = np.where((lam >= 4500) & (lam <= 5995))[0][1:-1]
-    newwave = lam[idx]
-    flux, fluxerr = spectres(newwave, wave, flux, spec_errs=fluxerr)
-    norm = np.nanmedian(flux)
+    # logLam = log_rebin([wave[0], wave[-1]], flux, velscale=velscale)[1]
+    # lam = np.exp(logLam)
+    # idx = np.where((lam >= 4500) & (lam <= 5995))[0][1:-1]
+    # newwave = lam[idx]
+    # flux, fluxerr = spectres(newwave, wave, flux, spec_errs=fluxerr)
+    idx = np.where((wave >= 4500) & (wave <= 5995))[0]
+    flux = flux[idx]
+    fluxerr = fluxerr[idx]
+    wave = wave[idx]
+    norm = np.median(flux)
     flux /= norm
     fluxerr /= norm
-    # Reading templates
+    # Preparing templates
     templates_file = "emiles_velscale200.fits"
     templates = fits.getdata(templates_file, ext=0)
     tnorm = np.median(templates)
     templates /= tnorm
     params = Table.read(templates_file, hdu=1)
-    logwave = Table.read(templates_file, hdu=2)["loglam"].data
+    logwave = Table.read(templates_file, hdu=2)["loglam"].observed
     twave = np.exp(logwave)
-    ssp = SSP(twave, params, templates)
+    ssp = bsf.SSP(twave, params, templates)
+    ssppars = ssp.params
+    # for param in ssp.params.colnames:
+    #     print(param, ssp.params[param].min(), ssp.params[param].max())
+    # input()
+    extinction = bsf.CCM89(twave)
+    stars = ssp * extinction
+    p0_ssp = np.array([.15, 10., .2, .2])
+    p0_ext = np.array([0.1, 3.8])
+    p0_stars = np.hstack([p0_ssp, p0_ext])
     # Loading templates for the emission lines
     emission, line_names, line_wave = emission_lines(logwave,
                                 [wave.min(), wave.max()], 2.95)
+    line_names = [_.replace("[", "").replace("]", "").replace("_", "") for _ in
+                  line_names]
     enorm = np.nanmax(emission)
     emission /= enorm
     line_names = list(line_names)
     gas_templates = emission.T
-    emission = EmissionLines(twave, gas_templates, line_names)
+    emission = bsf.EmissionLines(twave, gas_templates, line_names)
+    p0_em = np.ones(len(line_names), dtype=np.float)
+    # Adding a polynomial
+    porder = 10
+    poly = bsf.Polynomial(wave, porder)
+    p0_poly = np.zeros(porder + 1, dtype=np.float)
+    p0_poly[0] = 1.8
+    p0_losvd = np.array([3800, 280])
     ############################################################################
     # Creating a model
-    spec0 = SSPPlusEmission(twave, ssp, emission, velscale)
-    p0 = np.array([0, 10, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 1, 3800, 200])
-    spec1 = LOSVDConv(twave, spec0, velscale)
-    spec = Rebin(newwave, spec1)
-    # plt.plot(spec0.wave, spec0(p0[:-2]))
-    # plt.plot(spec1.wave, spec1(p0))
+    spec = bsf.Rebin(wave, bsf.LOSVDConv((stars + emission), velscale)) * poly
+    p0 = np.hstack([p0_stars, p0_em, p0_losvd, p0_poly,])
+    # plt.plot(wave, flux)
     # plt.plot(spec.wave, spec(p0))
     # plt.show()
-    model = build_model(wave, flux, fluxerr, spec, params)
+    model = build_model(wave, flux, fluxerr, spec, ssppars, emission.parnames,
+                        porder)
     with model:
         trace = pm.sample()
-        df = pm.stats.summary(trace, alpha=0.3173)
-        df.to_csv("summary.txt")
+        df = pm.stats.summary(trace)
+        df.to_csv("summary_nuts.txt")
+        pm.traceplot(trace)
+    plt.show()
     input()
 
     pm.save_trace(trace, output, overwrite=True)
