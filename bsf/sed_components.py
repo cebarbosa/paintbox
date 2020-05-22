@@ -11,41 +11,53 @@ Basic classes to build the SED/spectra of galaxies
 from __future__ import print_function, division
 
 import numpy as np
-import astropy.units as u
-from scipy.ndimage import convolve1d
-from scipy.interpolate import LinearNDInterpolator
+from scipy.interpolate import RegularGridInterpolator
 from scipy.special import legendre
 
 from .operators import SEDMul, SEDSum
 
-class SSP():
-    """ Linearly interpolated SSP models."""
-    def __init__(self, wave, params, templates):
+class StPopInterp():
+    """ Linearly interpolated line-strength indices."""
+    def __init__(self, wave, params, data):
         self.wave = wave
         self.params = params
-        self.templates = templates
-        self.nparams = len(self.params.colnames)
+        self.data = data
         self.parnames = self.params.colnames
-        ########################################################################
+        self._n = len(wave)
+        self.nparams = len(self.parnames)
         # Interpolating models
         x = self.params.as_array()
-        a = x.view((x.dtype[0], len(x.dtype.names)))
-        self.f = LinearNDInterpolator(a, templates, fill_value=0.)
+        pdata = x.view((x.dtype[0], len(x.dtype.names)))
+        nodes = []
+        for param in self.parnames:
+            x = np.unique(self.params[param]).data
+            nodes.append(x)
+        coords = np.meshgrid(*nodes, indexing='ij')
+        dim = coords[0].shape + (self._n,)
+        data = np.zeros(dim)
+        with np.nditer(coords[0], flags=['multi_index']) as it:
+            while not it.finished:
+                multi_idx = it.multi_index
+                x = np.array([coords[i][multi_idx] for i in range(len(coords))])
+                idx = (pdata == x).all(axis=1).nonzero()[0]
+                data[multi_idx] = self.data[idx]
+                it.iternext()
+        self.f = RegularGridInterpolator(nodes, data, fill_value=0)
         ########################################################################
         # Get grid points to handle derivatives
         inner_grid = []
         thetamin = []
         thetamax = []
-        for par in self.params.colnames:
-            thetamin.append(np.min(self.params[par].observed))
-            thetamax.append(np.max(self.params[par].observed))
-            inner_grid.append(np.unique(self.params[par].observed)[1:-1])
+        for par in self.parnames:
+            thetamin.append(np.min(self.params[par].data))
+            thetamax.append(np.max(self.params[par].data))
+            inner_grid.append(np.unique(self.params[par].data)[1:-1])
         self.thetamin = np.array(thetamin)
         self.thetamax = np.array(thetamax)
         self.inner_grid = inner_grid
 
     def __call__(self, theta):
-        return self.f(theta).sum(axis=0)
+        return self.f(theta)[0]
 
     def __add__(self, o):
         return SEDSum(self, o)
@@ -57,7 +69,7 @@ class SSP():
         # Clipping theta to avoid border problems
         theta = np.maximum(theta, self.thetamin + 2 * eps)
         theta = np.minimum(theta, self.thetamax - 2 * eps)
-        grads = np.zeros((self.nparams, self.templates.shape[1]))
+        grads = np.zeros((self.nparams, self._n))
         for i,t in enumerate(theta):
             epsilon = np.zeros(self.nparams)
             epsilon[i] = eps

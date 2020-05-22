@@ -46,8 +46,8 @@ class LogLike(tt.Op):
             self.likelihood = NormalLogLike(self.observed, self.obserr,
                                             self.model)
         elif self.loglike == "normal2":
-            self.likelihood = NormalWithScaledSigma(self.observed, self.obserr,
-                                                    self.model)
+            self.likelihood = Normal2LogLike(self.observed, self.obserr,
+                                             self.model)
         # initialise the gradient Op (below)
         self.logpgrad = _LogLikeGrad(self.likelihood)
 
@@ -151,7 +151,7 @@ class NormalLogLike():
                         self.model.gradient(theta), axis=1)
         return grad
 
-class NormalWithScaledSigma():
+class Normal2LogLike():
     def __init__(self, observed, obserr, model):
         self.observed = observed
         self.obserr = obserr
