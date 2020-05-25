@@ -15,7 +15,9 @@ import astropy.units as u
 
 from .operators import SEDSum, SEDMul
 
-class CCM89:
+__all__ = ["CCM89", "C2000"]
+
+class CCM89():
     """ Cardelli, Clayton and Mathis (1989)"""
     def __init__(self, wave, unit=None):
         if hasattr(wave, "unit"):

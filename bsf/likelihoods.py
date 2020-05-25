@@ -12,7 +12,10 @@ import numpy as np
 from scipy.special import gamma, digamma
 import theano.tensor as tt
 
-class LogLike(tt.Op):
+__all__ = ["TheanoLogLikeInterface", "StudTLogLike", "NormalLogLike",
+           "Normal2LogLike"]
+
+class TheanoLogLikeInterface(tt.Op):
     """
     Produces a theano.tensor operator for the data log-likelihood to be used
     with pymc3.
@@ -40,14 +43,14 @@ class LogLike(tt.Op):
         self.obserr = np.ones_like(self.observed) if obserr is None else obserr
         self.loglike = loglike
         if self.loglike == "studt":
-            self.likelihood = StudTLogLike(self.observed, self.obserr,
-                                           self.model)
+            self.likelihood = StudTLogLike(self.observed, self.model,
+                                             obserr=self.obserr)
         elif self.loglike == "normal":
-            self.likelihood = NormalLogLike(self.observed, self.obserr,
-                                            self.model)
+            self.likelihood = NormalLogLike(self.observed, self.model,
+                                             obserr=self.obserr)
         elif self.loglike == "normal2":
-            self.likelihood = Normal2LogLike(self.observed, self.obserr,
-                                             self.model)
+            self.likelihood = Normal2LogLike(self.observed, self.model,
+                                             obserr=self.obserr)
         # initialise the gradient Op (below)
         self.logpgrad = _LogLikeGrad(self.likelihood)
 
@@ -91,21 +94,21 @@ class _LogLikeGrad(tt.Op):
         outputs[0][0] = grads
 
 class StudTLogLike():
-    def __init__(self, observed, obserr, model):
+    def __init__(self, observed, model, obserr=None):
         self.observed = observed
-        self.sigma = obserr
         self.model = model
+        self.obserr = np.ones_like(self.observed) if obserr is None else obserr
         self.N = len(observed)
         self.nparams = self.model.nparams + 1
 
     def __call__(self, theta):
         nu = theta[-1]
         e_i = self.model(theta[:-1]) - self.observed
-        x = 1. + np.power(e_i / self.sigma, 2.) / (nu - 2)
+        x = 1. + np.power(e_i / self.obserr, 2.) / (nu - 2)
         LLF = self.N * np.log(gamma(0.5 * (nu + 1)) /
                          np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu))  \
              - 0.5 * (nu + 1) * np.sum(np.log(x)) \
-             - 0.5 * np.sum(np.log(self.sigma**2)) # Constant
+             - 0.5 * np.sum(np.log(self.obserr ** 2)) # Constant
         return float(LLF)
 
     def gradient(self, theta):
@@ -113,9 +116,9 @@ class StudTLogLike():
         nu = theta[-1]
         # d loglike / d theta
         e_i = self.model(theta[:-1]) - self.observed
-        x = np.power(e_i / self.sigma, 2.) / (nu - 2.)
+        x = np.power(e_i / self.obserr, 2.) / (nu - 2.)
         term1 = 1 / (1 + x)
-        term2 = 2 * e_i / (self.sigma**2) / (nu-2)
+        term2 = 2 * e_i / (self.obserr ** 2) / (nu - 2)
         term12 = term1 * term2
         sspgrad = self.model.gradient(theta[:-1])
         grad[:-1] = -0.5 * (nu + 1) * np.sum(term12[np.newaxis, :] *
@@ -126,14 +129,14 @@ class StudTLogLike():
         nuterm3 = -0.5 * self.N * digamma(0.5 * nu)
         nuterm4 = -0.5 * np.sum(np.log(1 + x))
         nuterm5 = 0.5 * (nu + 1) * np.power(nu - 2, -2) * \
-                  np.sum(np.power(e_i / self.sigma, 2) * term1)
+                  np.sum(np.power(e_i / self.obserr, 2) * term1)
         grad[-1] = nuterm1 + nuterm2 + nuterm3 + nuterm4 + nuterm5
         return grad
 
 class NormalLogLike():
-    def __init__(self, observed, obserr, model):
+    def __init__(self, observed, model, obserr=None):
         self.observed = observed
-        self.obserr = obserr
+        self.obserr = np.ones_like(self.observed) if obserr is None else obserr
         self.model = model
         self.N = len(observed)
         self.nparams = self.model.nparams
@@ -152,10 +155,10 @@ class NormalLogLike():
         return grad
 
 class Normal2LogLike():
-    def __init__(self, observed, obserr, model):
+    def __init__(self, observed, model, obserr=None):
         self.observed = observed
-        self.obserr = obserr
         self.model = model
+        self.obserr = np.ones_like(self.observed) if obserr is None else obserr
         self.N = len(observed)
         self.nparams = self.model.nparams
 

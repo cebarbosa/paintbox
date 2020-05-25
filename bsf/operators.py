@@ -15,6 +15,8 @@ import astropy.units as u
 from scipy.ndimage import convolve1d
 from spectres import spectres
 
+__all__ = ["LOSVDConv", "Rebin", "SEDSum", "SEDMul"]
+
 class LOSVDConv():
     def __init__(self, obj, velscale):
         self.obj = obj

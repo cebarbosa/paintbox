@@ -82,7 +82,8 @@ def build_model(wave, flux, fluxerr, spec, params, emlines, porder,
             s = pm.Deterministic("S", 1. + pm.math.exp(x))
             theta.append(s)
         theta = tt.as_tensor_variable(theta).T
-        logl = bsf.LogLike(flux, spec, loglike=loglike, obserr=fluxerr)
+        logl = bsf.TheanoLogLikeInterface(flux, spec, loglike=loglike,
+                                          obserr=fluxerr)
         pm.DensityDist('loglike', lambda v: logl(v),
                        observed={'v': theta})
     return model
@@ -100,12 +101,6 @@ def example_full_spectral_fitting():
     wave = data["wave"].data
     flux = data["flux"].data
     fluxerr = data["fluxerr"].data
-    # Resampling to fixed velocity scale
-    # logLam = log_rebin([wave[0], wave[-1]], flux, velscale=velscale)[1]
-    # lam = np.exp(logLam)
-    # idx = np.where((lam >= 4500) & (lam <= 5995))[0][1:-1]
-    # newwave = lam[idx]
-    # flux, fluxerr = spectres(newwave, wave, flux, spec_errs=fluxerr)
     idx = np.where((wave >= 4500) & (wave <= 5995))[0]
     flux = flux[idx]
     fluxerr = fluxerr[idx]
@@ -158,39 +153,21 @@ def example_full_spectral_fitting():
     limits["sigma"] = (50, 500)
     bounds = np.array([limits[par] for par in spec.parnames])
     p0 = np.hstack([p0_stars, p0_em, p0_losvd, p0_poly,])
-    plt.plot(wave, flux)
-    plt.plot(wave, spec(p0))
-    plt.show()
-    input()
-    # Finding solutionx'
-    def residue(p):
-        return np.power((flux - spec(p)) / fluxerr, 2).sum()
-    time1 = time.time()
-    sol = opt.dual_annealing(residue, bounds, x0=p0)
-    time2 = time.time()
-    print('Optimization took {:.3f} s'.format((time2-time1)))
-    print(sol)
-    input()
+    loglike = bsf.NormalLogLike(flux, spec, obserr=fluxerr)
+    # func = lambda p: -loglike(p)
+    # sol = opt.dual_annealing(func, bounds, x0=p0, maxiter=3)
 
 
     model = build_model(wave, flux, fluxerr, spec, ssppars, emission.parnames,
                         porder)
     with model:
         sol = pm.find_MAP()
-        print(sol)
-    input()
-
-    pm.save_trace(trace, output, overwrite=True)
-    trace = load_traces(output, bsf.parnames)
-    models = np.zeros((len(trace), len(bsf.wave)))
-    for i, t in enumerate(tqdm(trace)):
-        models[i] = bsf.sed(t)
-    ax = plt.subplot(111)
-    ax.plot(bsf.wave, bsf.flux + bsf.fluxerr)
-    ax.plot(bsf.wave, bsf.flux - bsf.fluxerr, c="C0")
-    ax.plot(bsf.wave, models.mean(axis=0))
+        p1 = np.array([sol[par] for par in spec.parnames])
+    plt.plot(wave, flux)
+    plt.plot(wave, spec(p1))
+    for par, pval in zip(spec.parnames, p1):
+        print(par, pval)
     plt.show()
-    ###########################################################################
 
 if __name__ == "__main__":
     example_full_spectral_fitting()

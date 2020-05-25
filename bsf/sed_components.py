@@ -16,6 +16,8 @@ from scipy.special import legendre
 
 from .operators import SEDMul, SEDSum
 
+__all__ = ["StPopInterp", "EmissionLines", "Polynomial"]
+
 class StPopInterp():
     """ Linearly interpolated line-strength indices."""
     def __init__(self, wave, params, data):
@@ -42,7 +44,8 @@ class StPopInterp():
                 idx = (pdata == x).all(axis=1).nonzero()[0]
                 data[multi_idx] = self.data[idx]
                 it.iternext()
-        self.f = RegularGridInterpolator(nodes, data, fill_value=0)
+        self.f = RegularGridInterpolator(nodes, data, bounds_error=False,
+                                         fill_value=0)
         ########################################################################
         # Get grid points to handle derivatives
         inner_grid = []
