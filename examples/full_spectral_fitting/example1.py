@@ -9,7 +9,7 @@ Author : Carlos Eduardo Barbosa
 from __future__ import print_function, division
 
 import sys
-import time
+import copy
 
 import numpy as np
 from astropy.io import fits
@@ -17,13 +17,12 @@ from astropy.table import Table
 from astropy.modeling import models
 import matplotlib.pyplot as plt
 import pymc3 as pm
-from tqdm import tqdm
 import theano.tensor as tt
 import scipy.optimize as opt
 
 sys.path.append("../bsf")
 
-import bsf
+import paintbox as pb
 
 def make_emission_lines(wave):
     FWHM = 2.95 # Data resolution
@@ -49,40 +48,55 @@ def build_model(wave, flux, fluxerr, spec, params, emlines, porder,
     loglike = "normal2" if loglike is None else loglike
     model = pm.Model()
     flux = flux.astype(np.float)
+    polynames = ["p{}".format(i+1) for i in range(porder)]
     with model:
         theta = []
-        for param in params.colnames:
-            vmin = params[param].data.min()
-            vmax = params[param].data.max()
-            v = pm.Uniform(param, lower=vmin, upper=vmax)
-            theta.append(v)
-        Av = pm.Exponential("Av", lam=1 / 0.4, testval=0.1)
-        theta.append(Av)
-        BNormal = pm.Bound(pm.Normal, lower=0)
-        Rv = BNormal("Rv", mu=3.1, sd=1., testval=3.1)
-        theta.append(Rv)
-        for em in emlines:
-            v = pm.HalfNormal(em, sigma=1)
-            theta.append(v)
-        BoundedNormal = pm.Bound(pm.Normal, lower=3500, upper=4200)
-        V = BoundedNormal("V", mu=3800., sigma=100.)
-        theta.append(V)
-        sigma = pm.HalfNormal("sigma", sd=200)
-        theta.append(sigma)
-        p0 = pm.HalfNormal("p0", sd=2.)
-        theta.append(p0)
-        for n in range(porder):
-            pn = pm.Normal("p{}".format(n+1), mu=0., sd=1.)
-            theta.append(pn)
+        for param in spec.parnames:
+            pname = param.split("_")[0]
+            if pname == "w":
+                w = pm.Normal(param, mu=0.5, sd=0.5)
+                theta.append(w)
+            elif pname in params.colnames:
+                vmin = params[pname].data.min()
+                vmax = params[pname].data.max()
+                v = pm.Uniform(param, lower=vmin, upper=vmax,
+                               testval=0.5 * (vmin + vmax))
+                theta.append(v)
+            # Extinction parameters
+            elif pname == "Av":
+                Av = pm.Uniform("Av", lower=0, upper=1., testval=0.1)
+                theta.append(Av)
+            elif pname == "Rv":
+                Rv = pm.Uniform("Rv", lower=2.8, upper=4.8, testval=3.8)
+                theta.append(Rv)
+            # Emission lines
+            elif param in emlines:
+                v = pm.Uniform(param, lower=0, upper=10., testval=1.)
+                theta.append(v)
+            # Kinematic parameters
+            elif pname == "V":
+                V = pm.Uniform("V", lower=3600, upper=4000, testval=3800)
+                theta.append(V)
+            elif pname == "sigma":
+                sigma = pm.Uniform("sigma", lower=100, upper=400, testval=200.)
+                theta.append(sigma)
+            # Polynomia parameters
+            elif pname == "p0":
+                p0 = pm.Normal("p0", mu=1, sd=0.1, testval=1.)
+                theta.append(p0)
+            elif param in polynames:
+                pn = pm.Normal(param, mu=0, sd=0.1, testval=0.)
+                theta.append(pn)
+        # Appending additional parameters for likelihood
         if loglike == "studt":
             nu = pm.Uniform("nu", lower=2.01, upper=50, testval=10.)
             theta.append(nu)
         if loglike == "normal2":
-            x = pm.Normal("x", mu=0, sd=1)
+            x = pm.Uniform("x", lower=0, upper=2.)
             s = pm.Deterministic("S", 1. + pm.math.exp(x))
             theta.append(s)
         theta = tt.as_tensor_variable(theta).T
-        logl = bsf.TheanoLogLikeInterface(flux, spec, loglike=loglike,
+        logl = pb.TheanoLogLikeInterface(flux, spec, loglike=loglike,
                                           obserr=fluxerr)
         pm.DensityDist('loglike', lambda v: logl(v),
                        observed={'v': theta})
@@ -108,6 +122,7 @@ def example_full_spectral_fitting():
     norm = np.median(flux)
     flux /= norm
     fluxerr /= norm
+    ############################################################################
     # Preparing templates
     templates_file = "emiles_velscale200.fits"
     templates = fits.getdata(templates_file, ext=0)
@@ -119,56 +134,63 @@ def example_full_spectral_fitting():
         limits[param] = (params[param].min(), params[param].max())
     logwave = Table.read(templates_file, hdu=2)["loglam"].data
     twave = np.exp(logwave)
-    ssp = bsf.StPopInterp(twave, params, templates)
-    ssppars = ssp.params
+    ssp1 = pb.StPopInterp(twave, params, templates)
+    ssp2 = copy.deepcopy(ssp1)
+    w1 = pb.Polynomial(twave, 0)
+    w1.parnames = ["w_1"]
+    w2 = pb.Polynomial(twave, 0)
+    w2.parnames = ["w_2"]
+    ssp1.parnames = ["{}_1".format(_) for _ in ssp1.parnames]
+    ssp2.parnames = ["{}_2".format(_) for _ in ssp2.parnames]
+    ssp = w1 * ssp1 + w2 * ssp2
+    ssppars = ssp1.params
+    p0 = [0.5, .2, 10.2, .2, .2]
+    p0_ssp = np.array(p0 * 2)
+    ############################################################################
     # Adding extinction to the stellar populations
-    extinction = bsf.CCM89(twave)
+    extinction = pb.CCM89(twave)
     limits["Av"] = (0., 5)
     limits["Rv"] = (0., 5)
-    stars = ssp * extinction
-    p0_ssp = np.array([.15, 10., .2, .2])
     p0_ext = np.array([0.1, 3.8])
+    ############################################################################
+    # Combining SSP with extinction
+    stars = ssp * extinction
     p0_stars = np.hstack([p0_ssp, p0_ext])
+    ############################################################################
     # Loading templates for the emission lines
     emwave = np.linspace(4499, 6001, 2000) # Oversampled dispersion
     gas_templates, line_names = make_emission_lines(emwave)
-    emission = bsf.Rebin(twave, bsf.EmissionLines(emwave, gas_templates,
+    emission = pb.Rebin(twave, pb.EmissionLines(emwave, gas_templates,
                                                   line_names))
     p0_em = np.ones(len(line_names), dtype=np.float)
-    for lname in line_names:
-        limits[lname] = (0, 10.)
-    # Adding a polynomial
+    ###########################################################################
+    # Multiplicative polynomial for continuum
     porder = 10
-    poly = bsf.Polynomial(wave, porder)
+    poly = pb.Polynomial(wave, porder)
     p0_poly = np.zeros(porder + 1, dtype=np.float)
     p0_poly[0] = 1.8
-    p0_losvd = np.array([3800, 280])
     limits["p0"] = (0, 10)
     for i in range(porder):
         limits["p{}".format(i+1)] = (-1, 1)
+    for lname in line_names:
+        limits[lname] = (0, 10.)
     ############################################################################
     # Creating a model including LOSVD
-    spec = bsf.Rebin(wave, bsf.LOSVDConv((stars + emission), velscale)) * poly
+    spec = pb.Rebin(wave, pb.LOSVDConv((stars + emission), velscale)) * poly
     limits["V"] = (3600, 4100)
     limits["sigma"] = (50, 500)
-    bounds = np.array([limits[par] for par in spec.parnames])
-    p0 = np.hstack([p0_stars, p0_em, p0_losvd, p0_poly,])
-    loglike = bsf.NormalLogLike(flux, spec, obserr=fluxerr)
-    # func = lambda p: -loglike(p)
-    # sol = opt.dual_annealing(func, bounds, x0=p0, maxiter=3)
-
-
+    p0_losvd = np.array([3800, 280])
+    # bounds = np.array([limits[par] for par in spec.parnames])
+    p0 = np.hstack([p0_stars, p0_em, p0_losvd, p0_poly])
     model = build_model(wave, flux, fluxerr, spec, ssppars, emission.parnames,
                         porder)
+    db = "mcmc_db"
+    summary = "summary_mcmc.csv"
     with model:
-        sol = pm.find_MAP()
-        p1 = np.array([sol[par] for par in spec.parnames])
-    plt.plot(wave, flux)
-    plt.plot(wave, spec(p1))
-    for par, pval in zip(spec.parnames, p1):
-        print(par, pval)
-    plt.show()
+        trace = pm.sample(200, step=pm.Metropolis())
+        df = pm.stats.summary(trace)
+        df.to_csv(summary)
+    pm.save_trace(trace, db, overwrite=True)
 
 if __name__ == "__main__":
     example_full_spectral_fitting()
-#
