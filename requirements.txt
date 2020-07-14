@@ -20,7 +20,6 @@ pyparsing
 python-dateutil
 pytz
 scipy
-sewpy
 six
 Theano
 tornado
