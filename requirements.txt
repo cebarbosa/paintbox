@@ -15,7 +15,6 @@ numpy
 packaging
 pandas
 patsy
-pygpu
 pymc3
 pyparsing
 python-dateutil
