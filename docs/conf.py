@@ -105,7 +105,11 @@ release = package.__version__
 #html_theme = None
 
 
-html_theme = "astropy-bootstrap"
+html_theme_options = {
+    'logotext1': 'Paintbox',  # white,  semi-bold
+    'logotext2': '',  # orange, light
+    'logotext3': ':docs'   # white,  light
+    }
 
 
 # Custom sidebar templates, maps document names to template names.

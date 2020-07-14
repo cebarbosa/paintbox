@@ -1,5 +1,5 @@
-Parametric modeling and fitting toolbox for SED and full spectrum fitting.
---------------------------------------------------------------------------
+Paintbox
+--------
 
 .. image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
     :target: http://www.astropy.org
