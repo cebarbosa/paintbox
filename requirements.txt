@@ -10,7 +10,6 @@ MarkupSafe
 matplotlib
 mkl-fft
 mkl-random
-mkl-service
 netCDF4
 numpy
 packaging
