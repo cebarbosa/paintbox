@@ -9,9 +9,6 @@ import sys
 
 from setuptools import setup
 
-from extension_helpers import get_extensions
-
-
 # First provide helpful messages if contributors try and run legacy commands
 # for tests or docs.
 
@@ -77,5 +74,4 @@ except Exception:
 """.lstrip()
 
 setup(use_scm_version={'write_to': os.path.join('paintbox', 'version.py'),
-                       'write_to_template': VERSION_TEMPLATE},
-      ext_modules=get_extensions())
+                       'write_to_template': VERSION_TEMPLATE})
