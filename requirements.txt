@@ -3,7 +3,6 @@ appdirs==1.4.4
 arrow==0.15.7
 arviz==0.6.1
 asdf==2.4.2
-astromatic-wrapper==0.0.dev259
 astropy==4.0.1.post1
 astroquery==0.4.1
 attrs==19.3.0
