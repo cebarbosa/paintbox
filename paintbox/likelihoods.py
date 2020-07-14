@@ -161,7 +161,10 @@ class Normal2LogLike():
         self.nparams = self.model.nparams
 
     def __call__(self, theta):
-        e_i = self.model(theta[:-1]) - self.observed
+        model = self.model(theta[:-1])
+        if np.all(model) == 0:
+            return -np.infty
+        e_i = model - self.observed
         S = theta[-1]
         LLF = - 0.5 * self.N * np.log(2 * np.pi) + \
               - 0.5 * np.sum(np.power(e_i / (S * self.obserr), 2)) \
