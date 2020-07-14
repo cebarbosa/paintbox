@@ -1,3 +1,4 @@
-# BSF: Bayesian Spectral Fitting
+# paintbox
 
-A Python collection of Bayesian models for the study of kinematics and stellar populations in galaxies.
+Paintbox is flexible tool for to build and model the SED of galaxies, intended 
+but not restricted to applications using Bayesian methods.  

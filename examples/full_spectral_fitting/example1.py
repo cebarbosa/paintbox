@@ -20,7 +20,7 @@ import pymc3 as pm
 import theano.tensor as tt
 import scipy.optimize as opt
 
-sys.path.append("../bsf")
+# sys.path.append("../bsf")
 
 import paintbox as pb
 
@@ -48,7 +48,7 @@ def build_model(wave, flux, fluxerr, spec, params, emlines, porder,
     loglike = "normal2" if loglike is None else loglike
     model = pm.Model()
     flux = flux.astype(np.float)
-    polynames = ["p{}".format(i+1) for i in range(porder)]
+    polynames = ["p{}".format(i + 1) for i in range(porder)]
     with model:
         theta = []
         for param in spec.parnames:
@@ -187,7 +187,7 @@ def example_full_spectral_fitting():
     db = "mcmc_db"
     summary = "summary_mcmc.csv"
     with model:
-        trace = pm.sample(200, step=pm.Metropolis())
+        trace = pm.sample_smc(200, progressbar=True)
         df = pm.stats.summary(trace)
         df.to_csv(summary)
     pm.save_trace(trace, db, overwrite=True)
