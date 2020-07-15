@@ -10,8 +10,8 @@ kiwisolver==1.2.0
 Mako==1.1.3
 MarkupSafe
 matplotlib
-mkl-random==1.1.1
-mkl-service==2.3.0
+mkl-random
+mkl-service
 netCDF4==1.5.3
 numpy==1.18.5
 packaging==20.4
