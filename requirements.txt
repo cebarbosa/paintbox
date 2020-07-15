@@ -8,16 +8,15 @@ cycler==0.10.0
 h5py==2.10.0
 kiwisolver==1.2.0
 Mako==1.1.3
-MarkupSafe @ file:///tmp/build/80754af9/markupsafe_1594371495811/work
-matplotlib @ file:///tmp/build/80754af9/matplotlib-base_1592846017414/work
-mkl-fft==1.1.0
+MarkupSafe
+matplotlib
 mkl-random==1.1.1
 mkl-service==2.3.0
 netCDF4==1.5.3
 numpy==1.18.5
 packaging==20.4
 paintbox==0.1.dev113
-pandas @ file:///tmp/build/80754af9/pandas_1592841632039/work
+pandas
 patsy==0.5.1
 pkginfo==1.5.0.1
 pygpu==0.7.6
@@ -28,11 +27,11 @@ pytz==2020.1
 readme-renderer==26.0
 requests-toolbelt==0.9.1
 rfc3986==1.4.0
-scipy @ file:///tmp/build/80754af9/scipy_1592930510235/work
+scipy
 sewpy==1.0.dev0
 six==1.15.0
 Theano==1.0.4
 tornado==6.0.4
-tqdm @ file:///tmp/build/80754af9/tqdm_1593446365756/work
+tqdm
 twine==3.2.0
 xarray==0.15.1
