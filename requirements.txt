@@ -27,3 +27,4 @@ tqdm
 xarray
 emcee
 sphinx_astropy
+paintbox
