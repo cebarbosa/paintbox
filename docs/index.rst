@@ -7,3 +7,4 @@ This is the documentation for Paintbox.
   :maxdepth: 2
 
   paintbox/index.rst
+  paintbox/test.rst
