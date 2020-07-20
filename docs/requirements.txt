@@ -1,1 +1,1 @@
-astropy-sphinx
+sphinx-astropy
