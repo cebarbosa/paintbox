@@ -6,7 +6,6 @@ This is the documentation for Paintbox.
 
 Reference/API
 =============
-
 .. automodapi:: paintbox.sed_components
 
 .. automodapi:: paintbox.extlaws
@@ -16,3 +15,4 @@ Reference/API
 .. automodapi:: paintbox.operators
 
 .. automodapi:: paintbox.interfaces
+
