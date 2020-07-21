@@ -78,5 +78,3 @@ Reference/API
 
 .. automodapi:: paintbox.operators
 
-.. automodapi:: paintbox.interfaces
-
