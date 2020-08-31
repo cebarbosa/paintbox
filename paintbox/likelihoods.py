@@ -14,8 +14,6 @@ from scipy.special import gamma, digamma
 
 __all__ = ["StudTLogLike", "NormalLogLike", "Normal2LogLike"]
 
-
-
 class StudTLogLike():
     def __init__(self, observed, model, obserr=None):
         self.observed = observed
