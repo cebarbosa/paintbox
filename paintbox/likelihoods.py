@@ -15,12 +15,13 @@ from scipy.special import gamma, digamma
 __all__ = ["StudTLogLike", "NormalLogLike", "Normal2LogLike"]
 
 class StudTLogLike():
-    def __init__(self, observed, model, obserr=None):
+    def __init__(self, observed, model, obserr=None, mask=None):
         self.observed = observed
         self.model = model
         self.obserr = np.ones_like(self.observed) if obserr is None else obserr
         self.N = len(observed)
         self.nparams = self.model.nparams + 1
+        self.mask = np.ones(N) if mask is None else mask
 
     def __call__(self, theta):
         nu = theta[-1]

@@ -88,9 +88,8 @@ class Rebin():
 
 class SEDSum():
     def __init__(self, o1, o2):
-        if not np.all(o1.wave == o2.wave):
-            raise Exception("Components with different wavelenghts cannot be "
-                            "added!")
+        msg = "Components with different wavelenghts cannot be added!"
+        assert np.all(o1.wave == o2.wave), msg
         self.o1 = o1
         self.o2 = o2
         self.wave = self.o1.wave
@@ -120,9 +119,8 @@ class SEDSum():
 
 class SEDMul():
     def __init__(self, o1, o2):
-        if not np.all(o1.wave == o2.wave):
-            raise Exception("Components with different wavelenghts cannot be "
-                            "multiplied!")
+        msg = "Components with different wavelenghts cannot be multiplied!"
+        assert np.all(o1.wave == o2.wave), msg
         self.o1 = o1
         self.o2 = o2
         self.wave = self.o1.wave

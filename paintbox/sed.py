@@ -120,7 +120,8 @@ class Polynomial():
     def __init__(self, wave, degree):
         self.wave = wave
         self.degree = degree
-        self.x = np.linspace(-1, 1, len(self.wave))
+        self.x = 2 * ((self.wave - self.wave.min()) /
+                      (self.wave.max() - self.wave.min()) - 0.5)
         self.poly = np.zeros((self.degree + 1, len(self.x)))
         for i in np.arange(self.degree + 1):
             self.poly[i] = legendre(i)(self.x)

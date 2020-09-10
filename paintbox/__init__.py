@@ -14,7 +14,7 @@ __all__ = []
 # __all__ += example_mod.__all__
 
 from .operators import *
-from .sed_components import *
+from .sed import *
 from .extlaws import *
 from .likelihoods import *
 from .interfaces import *
