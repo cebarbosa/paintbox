@@ -70,7 +70,7 @@ Extending ``paintbox``
 
 Reference/API
 =============
-.. automodapi:: paintbox.sed_components
+.. automodapi:: paintbox.sed
 
 .. automodapi:: paintbox.extlaws
 
