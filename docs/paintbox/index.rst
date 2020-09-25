@@ -42,11 +42,6 @@ Using ``paintbox``
 Interpolating stellar poopulation models
 ----------------------------------------
 
-.. toctree::
-   :maxdepth: 2
-
-   test.rst
-
 Using templates
 ---------------
 
