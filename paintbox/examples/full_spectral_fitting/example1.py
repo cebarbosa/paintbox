@@ -134,7 +134,7 @@ def example_full_spectral_fitting():
         limits[param] = (params[param].min(), params[param].max())
     logwave = Table.read(templates_file, hdu=2)["loglam"].data
     twave = np.exp(logwave)
-    ssp1 = pb.StPopInterp(twave, params, templates)
+    ssp1 = pb.ParametricModel(twave, params, templates)
     ssp2 = copy.deepcopy(ssp1)
     w1 = pb.Polynomial(twave, 0)
     w1.parnames = ["w_1"]
@@ -160,8 +160,8 @@ def example_full_spectral_fitting():
     # Loading templates for the emission lines
     emwave = np.linspace(4499, 6001, 2000) # Oversampled dispersion
     gas_templates, line_names = make_emission_lines(emwave)
-    emission = pb.Rebin(twave, pb.EmissionLines(emwave, gas_templates,
-                                                  line_names))
+    emission = pb.Resample(twave, pb.NonParametricModel(emwave, gas_templates,
+                                                        line_names))
     p0_em = np.ones(len(line_names), dtype=np.float)
     ###########################################################################
     # Multiplicative polynomial for continuum
@@ -176,7 +176,7 @@ def example_full_spectral_fitting():
         limits[lname] = (0, 10.)
     ############################################################################
     # Creating a model including LOSVD
-    spec = pb.Rebin(wave, pb.LOSVDConv((stars + emission), velscale)) * poly
+    spec = pb.Resample(wave, pb.LOSVDConv((stars + emission), velscale)) * poly
     limits["V"] = (3600, 4100)
     limits["sigma"] = (50, 500)
     p0_losvd = np.array([3800, 280])

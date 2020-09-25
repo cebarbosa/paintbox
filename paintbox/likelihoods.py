@@ -21,7 +21,7 @@ class StudTLogLike():
         self.obserr = np.ones_like(self.observed) if obserr is None else obserr
         self.N = len(observed)
         self.nparams = self.model.nparams + 1
-        self.mask = np.ones(N) if mask is None else mask
+        self.mask = np.ones(self.N) if mask is None else mask
 
     def __call__(self, theta):
         nu = theta[-1]

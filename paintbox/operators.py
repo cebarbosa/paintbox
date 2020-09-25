@@ -15,7 +15,7 @@ import astropy.units as u
 from scipy.ndimage import convolve1d
 from spectres import spectres
 
-__all__ = ["LOSVDConv", "Rebin", "SEDSum", "SEDMul"]
+__all__ = ["LOSVDConv", "Resample", "SEDSum", "SEDMul"]
 
 class LOSVDConv():
     def __init__(self, obj, velscale):
@@ -62,7 +62,7 @@ class LOSVDConv():
         grad[-1] = convolve1d(model, (y * y - 1.) * k / p2[1])
         return grad
 
-class Rebin():
+class Resample():
     def __init__(self, wave, obj):
         self.obj = obj
         self.inwave= self.obj.wave

@@ -16,9 +16,9 @@ from scipy.special import legendre
 
 from .operators import SEDMul, SEDSum
 
-__all__ = ["StPopInterp", "EmissionLines", "Polynomial"]
+__all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
 
-class StPopInterp():
+class ParametricModel():
     """ Linearly interpolated SSP models."""
     def __init__(self, wave, params, data):
         self.wave = wave
@@ -93,7 +93,7 @@ class StPopInterp():
                 grads[i] = (self.__call__(tp) - self.__call__(tm)) / (2 * eps)
         return grads
 
-class EmissionLines():
+class NonParametricModel():
     def __init__(self, wave, templates, em_names=None):
         self.wave = wave
         self.templates = np.atleast_2d(templates)
