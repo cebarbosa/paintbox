@@ -76,6 +76,10 @@ except Exception:
     version = '{version}'.split("+")[0]
 """.lstrip()
 
+def local_scheme(version):
+    return "".split("+")[0]
+
 setup(use_scm_version={'write_to': os.path.join('paintbox', 'version.py'),
-                       'write_to_template': VERSION_TEMPLATE},
+                       'write_to_template': VERSION_TEMPLATE,
+                       "local_scheme": local_scheme},
       ext_modules=get_extensions())
