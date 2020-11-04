@@ -29,9 +29,7 @@ tarball from this
 `link <ftp://milespublic:phoShi4v@ftp.iac.es/E-MILES/EMILES_BASTI_BASE_CH_FITS.tar.gz>`__
 (95 Mb). After downloading the data, it is necessary to unpack the
 tarfile (preferentially into a directory), which contains 636 SSP
-spectra.
-
-.. code:: python
+spectra.::
 
     import os
     import numpy as np
@@ -41,9 +39,7 @@ spectra.
 
 We can use the `name
 convention <http://research.iac.es/proyecto/miles/pages/ssp-models/name-convention.php>`__
-of the MILES models to find the model that we want.
-
-.. code:: python
+of the MILES models to find the model that we want::
 
     def miles_filename(specrange, imf, imfslope, metal, age):
         """ Returns the name of a fits file in the MILES library according to the name convention. """
@@ -62,7 +58,7 @@ of the MILES models to find the model that we want.
 
 
 
-.. code:: python
+::
 
     for Z in metal:
         for T in ages:
