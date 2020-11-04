@@ -43,7 +43,7 @@ We recommend importing **paintbox** as::
 Tutorials
 ---------
 
-.. toctree:: getting_started.ipynb
+.. toctree:: getting_started.rst
    :maxdepth: 2
 
 
