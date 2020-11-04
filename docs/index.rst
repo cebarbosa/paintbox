@@ -36,10 +36,15 @@ Currently, the installation of **paintbox** is available with pip::
 
     pip install paintbox
 
-.. toctree:: paintbox/index.rst
-   :maxdepth: 2
-   :caption: User guide
+Tutorials
+---------
 
 .. toctree:: tutorials/getting_started.ipynb
    :maxdepth: 2
    :caption: Tutorials
+
+User guide
+----------
+
+.. toctree:: paintbox/index.rst
+   :maxdepth: 2
