@@ -21,9 +21,8 @@ Using MILES stellar populations
 
 Stellar populations models from the MILES library can be obtained in a
 variety of ways in their
-`website <http://research.iac.es/proyecto/miles//pages/stellar-libraries/miles-library.php>`__.
-
-::
+`website <http://research.iac
+.es/proyecto/miles//pages/stellar-libraries/miles-library.php>`__. ::
 
     import os
     
@@ -37,9 +36,7 @@ variety of ways in their
 
 We can use the `name
 convention <http://research.iac.es/proyecto/miles/pages/ssp-models/name-convention.php>`__
-of the MILES models to find the model that we want.
-
-::
+of the MILES models to find the model that we want. ::
 
     def miles_filename(specrange, imf, imfslope, metal, age):
         """ Returns the name of a fits file in the MILES library according
@@ -56,9 +53,7 @@ isochrones and assuming a Chabrier initial mass function, which can be
 downloaded in a tarball from their public ftp link available
 `here <http://miles.iac.es/>`__ (95 Mb). After downloading the data, it
 is necessary to unpack the tarfile (preferentially into a directory),
-which contains 636 SSP spectra.
-
-::
+which contains 636 SSP spectra. ::
 
     specrange = "E" # options: "E", "M", "B", "R", "C"
     imf = "ch" # options: "un", "bi", "ku", "kb", "ch"
@@ -76,9 +71,7 @@ which contains 636 SSP spectra.
 
 We use the information in the header of one spectrum to determine the
 wavelength range, we select the desired wavelength range, and put the
-spetra in a wavelength array.
-
-::
+spetra in a wavelength array. ::
 
     h = fits.getheader(os.path.join(emiles_dir, filenames[0]))
     wave = (h['CRVAL1'] +   h['CDELT1'] * (np.arange((h['NAXIS1'])) + 1 -
