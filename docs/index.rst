@@ -34,7 +34,7 @@ Installation
 
 Currently, the installation of **paintbox** is available with pip::
 
-    $ pip install paintbox
+    pip install paintbox
 
 We recommend importing **paintbox** as::
 

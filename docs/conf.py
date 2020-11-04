@@ -157,7 +157,6 @@ man_pages = [('index', project.lower(), project + u' Documentation',
 if setup_cfg.get('edit_on_github').lower() == 'true':
 
     extensions += ['sphinx_astropy.ext.edit_on_github']
-    extensions += ["nbsphinx"]
 
     edit_on_github_project = setup_cfg['github_project']
     edit_on_github_branch = "master"
