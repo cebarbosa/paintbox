@@ -35,11 +35,9 @@ Installation
 Currently, the installation of **paintbox** is available with pip::
 
     pip install paintbox
+    
+We recommend importing **paintbox** as
 
-
-We recommend importing **paintbox** as 
-
-.. code-block:: python
     import paintbox as pb
 
 Tutorials

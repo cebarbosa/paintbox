@@ -6,6 +6,7 @@ requires = ["setuptools",
             "extension-helpers",
             "oldest-supported-numpy",
             "cython==0.29.14",
-            "nbsphinx"]
+            "nbsphinx",
+            "IPython"]
 
 build-backend = 'setuptools.build_meta'
