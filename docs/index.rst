@@ -1,10 +1,9 @@
-***************************
 Documentation for paintbox
-***************************
+==========================
 
 
 Overview
-========
+--------
 
 **paintbox** is a parametric modeling and fitting toolbox designed for the
 modeling of the spectral energy distribution (SED) of astronomical
@@ -16,7 +15,7 @@ populations, emission lines, extinction laws, etc, with a high degree of
 customization.
 
 Requirements
-============
+------------
 
 **paintbox** has the followong requirements:
 
@@ -31,10 +30,16 @@ Optional requirements for tutorials
 - emcee
 
 Installation
-============
+------------
 
-Currently, the installation of **paintbox** is made with pip::
+Currently, the installation of **paintbox** is available with pip::
 
     pip install paintbox
 
-.. include:: paintbox/index.rst
+.. toctree:: paintbox/index.rst
+   :maxdepth: 2
+   :caption: User guide
+
+.. toctree:: tutorials/getting_started.ipynb
+   :maxdepth: 2
+   :caption: Tutorials

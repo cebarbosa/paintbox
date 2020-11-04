@@ -1,32 +1,12 @@
-Using ``paintbox``
-==================
+Obtaining stellar population models
+-----------------------------------
 
-Interpolating stellar population models
-----------------------------------------
-
-Using templates
----------------
-
-Extinction laws
-----------------
-
-Polynomials
------------
-
-Velocity distribution convolution
-----------------------------------
-
-Rebinning
----------
-
-Composing models
-----------------
-
-Extending ``paintbox``
-----------------------
+.. toctree:: ../_static/getting_started.rst
+   :maxdepth: 2
+   :caption: Getting Started
 
 Reference/API
-=============
+-------------
 .. automodapi:: paintbox.sed
 
 .. automodapi:: paintbox.extlaws
