@@ -34,7 +34,7 @@ Installation
 
 Currently, the installation of **paintbox** is available with pip::
 
-    pip install paintbox
+    $ pip install paintbox
 
 We recommend importing **paintbox** as::
 
@@ -43,9 +43,8 @@ We recommend importing **paintbox** as::
 Tutorials
 ---------
 
-.. toctree:: tutorials/getting_started.ipynb
+.. toctree:: getting_started.ipynb
    :maxdepth: 2
-   :caption: Tutorials
 
 
 User guide
