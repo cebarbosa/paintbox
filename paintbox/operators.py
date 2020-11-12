@@ -15,7 +15,7 @@ import astropy.units as u
 from scipy.ndimage import convolve1d
 from spectres import spectres
 
-__all__ = ["LOSVDConv", "Resample", "SEDSum", "SEDMul"]
+__all__ = ["LOSVDConv", "Resample", "SEDSum", "SEDMul", "ConstrainModel"]
 
 class LOSVDConv():
     def __init__(self, obj, velscale):
@@ -147,3 +147,20 @@ class SEDMul():
         grad[:n, :] = self.o1.gradient(theta1) * self.o2(theta2)
         grad[n:, :] = self.o2.gradient(theta2) * self.o1(theta1)
         return grad
+
+class ConstrainModel():
+    def __init__(self, sed):
+        self.sed = sed
+        self.parnames = list(dict.fromkeys(sed.parnames))
+        self.wave = self.sed.wave
+        self.nparams = len(self.parnames)
+        self._shape = len(self.sed.parnames)
+        self._idxs = {}
+        for param in self.parnames:
+            self._idxs[param] = np.where(np.array(self.sed.parnames) == param)[0]
+
+    def __call__(self, theta):
+        t = np.zeros(self._shape)
+        for param, val in zip(self.parnames, theta):
+            t[self._idxs[param]] = val
+        return self.sed(t)
