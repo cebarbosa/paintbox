@@ -5,7 +5,7 @@ Documentation for paintbox
 Overview
 --------
 
-**paintbox** is a parametric modeling and fitting toolbox designed for the
+**Paintbox** is a parametric modeling and fitting toolbox designed for the
 modeling of the spectral energy distribution (SED) of astronomical
 observations including spectroscopy, photometry and any combination of those.
 The **paintbox** is designed to allow easy
@@ -40,6 +40,12 @@ We recommend importing **paintbox** as::
 
     import paintbox as pb
 
+Contribute
+----------
+**Paintbox** is a open-source project, and contributions to improve/ extend its
+capabilities are welcome. Please visit the project's github page: [github
+.com/cebarbosa/paintbox](github.com/cebarbosa/paintbox).
+
 Tutorials
 ---------
 
@@ -49,8 +55,8 @@ Tutorials
    :maxdepth: 2
 
 
-User guide
-----------
+Reference / API
+---------------
 
 .. toctree:: paintbox/index.rst
    :maxdepth: 2

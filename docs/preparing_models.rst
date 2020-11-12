@@ -27,7 +27,7 @@ For this example, we will use the packages
 and the [pPXF](`ppxf <https://pypi.org/project/ppxf/>`__ for rebinning
 the data to a logarithmic scale.
 
-.. code:: ipython3
+::
 
     import os
     
@@ -45,7 +45,7 @@ Mb). After downloading the data, it is necessary to unpack the tarfile
 (preferentially into a subdirectory, which we name emiles_v11),
 containing the 636 SSP spectra in this case.
 
-.. code:: ipython3
+::
 
     emiles_dir = os.path.join(os.getcwd(), "emiles_v11")
     w1 = 2600 # Minimum wavelength
@@ -55,7 +55,7 @@ We can use the `MILES name
 convention <http://research.iac.es/proyecto/miles/pages/ssp-models/name-convention.php>`__
 to read the files with the models.
 
-.. code:: ipython3
+::
 
     def miles_filename(specrange, imf, imfslope, metal, age):
         """ Returns the name of a fits file in the MILES library according
@@ -71,7 +71,7 @@ use in our analysis (filenames), and we also produce an astropy `Table
 object <https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table>`__
 storing the parameters of the files.
 
-.. code:: ipython3
+::
 
     specrange = "E" # options: "E", "M", "B", "R", "C"
     imf = "ch" # options: "un", "bi", "ku", "kb", "ch"
@@ -91,7 +91,7 @@ wavelength range (which is always the same for a given set of models).
 Notice that the wavelength range covered by the EMILES models is large
 (from the near-UV to the IR).
 
-.. code:: ipython3
+::
 
     h = fits.getheader(os.path.join(emiles_dir, filenames[0]))
     wave = (h['CRVAL1'] + h['CDELT1'] * (np.arange((h['NAXIS1'])) + 1 - h['CRPIX1']))
@@ -108,7 +108,7 @@ observations, or to a logarithmic scale to model the kinematics. We use
 the pPXF for this purpose, assuming a velocity scale for the rebinning
 of 200 km/s.
 
-.. code:: ipython3
+::
 
     velscale = 200
     extra_wave = 500
@@ -129,7 +129,7 @@ of 200 km/s.
 
 Now, we just need to store the processed data into a FITS file.
 
-.. code:: ipython3
+::
 
     hdu1 = fits.PrimaryHDU(ssps)
     hdu1.header["EXTNAME"] = "SSPS"
@@ -169,7 +169,7 @@ version 8, and the response functions from Conroy et al. (2018) version
 rebinning of the models, as it can handle arbitrary wavelength
 dispersions.
 
-.. code:: ipython3
+::
 
     import os
     
@@ -232,7 +232,7 @@ templates for SSP models from Villaume et al. (2017).
 
 First we define a function to handle the SSP models.
 
-.. code:: ipython3
+::
 
     def prepare_VCJ17(data_dir, wave, output, overwrite=False):
         """ Prepare templates for SSP models from Villaume et al. (2017).
@@ -286,7 +286,7 @@ First we define a function to handle the SSP models.
 Similarly, we define a function to produce the models for the response
 functions.
 
-.. code:: ipython3
+::
 
     def prepare_response_functions(data_dir, wave, outprefix, redo=False):
         """ Prepare response functions from CvD models.
@@ -365,7 +365,7 @@ functions.
 For instance, for near-infrared observations, the above routines can be
 used as follows:
 
-.. code:: ipython3
+::
 
     # Preparing SSP models
     w1, w2 = 8000, 13000 # Setting the wavelength window
