@@ -43,8 +43,8 @@ We recommend importing **paintbox** as::
 Contribute
 ----------
 **Paintbox** is a open-source project, and contributions to improve/ extend its
-capabilities are welcome. Please visit the project's github page: [github
-.com/cebarbosa/paintbox](github.com/cebarbosa/paintbox).
+capabilities are welcome. Please visit the project's `github page <github
+.com/cebarbosa/paintbox>`_.
 
 Tutorials
 ---------

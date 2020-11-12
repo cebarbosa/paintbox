@@ -50,7 +50,7 @@ SSP models.
     print("Parameters for example: ", p0)
     fig = plt.subplot(111)
     plt.plot(wave, ssp(p0), "-")
-    plt.xlabel("wavelength (Angstrom)")
+    plt.xlabel("Wavelength (Angstrom)")
     plt.ylabel("Flux")
 
 
@@ -60,16 +60,90 @@ SSP models.
     Parameters for example:  [0.1 6.  2.3 2.3]
 
 
+.. image:: building_models_files/building_models_3_2.png
+
+
+The SSP models contain elemental abundances that have solar values, but
+this can be changed with the response functions for each element. In
+practice, what we have to do is to multiply the response function by the
+base models generated above. Below we illustrate how to modify the
+models to the response of sodium, iron, calcium and potassium.
+
+::
+
+    elements = ["Na", "Fe", "Ca", "K"] # 
+    for element in elements:
+        elem_file = "templates/C18_rfs_{}.fits".format(element)
+        rfdata = fits.getdata(elem_file, ext=0)
+        rfpar = Table.read(elem_file, hdu=1)
+        vmin, vmax = rfpar[element].min(), rfpar[element].max()
+        rf = pb.ParametricModel(wave, rfpar, rfdata)
+        ssp = ssp * rf
+
+In the example above, we are already combining different **paintbox**
+components, producing one that is a multiplication of a SSP with four
+different response functions. However, the response functions are also
+dependent on the ages and metallicities of the SSP models. Consequently,
+the parameter names get repetitive in this case:
+
+::
+
+    print("Parameter names: ", ssp.parnames)
 
 
 .. parsed-literal::
 
-    Text(0, 0.5, 'Flux')
+    Parameter names:  ['Z', 'Age', 'x1', 'x2', 'Z', 'Age', 'Na', 'Z', 'Age', 'Fe', 'Z', 'Age', 'Ca', 'Z', 'Age', 'K']
 
 
+By default, **paintbox** just concatenate all the parameter names.
+However, in this application, we should use the same ages and
+metallicities in the model, which can be obtained by constraining the
+model as indicated below.
+
+::
+
+    ssp = pb.ConstrainModel(ssp)
+    print(ssp.parnames)
 
 
-.. image:: building_models_files/building_models_3_2.png
+.. parsed-literal::
+
+    ['Z', 'Age', 'x1', 'x2', 'Na', 'Fe', 'Ca', 'K']
+
+
+The ConstrainModel operator allows consistent calls to all parameters
+that are repeated.
+
+::
+
+    # Model parameters 
+    p1 = np.array([0.1, 6, 2.3, 2.3, 0.05, 0.05, 0.05, 0.05])
+    print("Parameters for non-solar abundances: ", p1)
+    fig = plt.subplot(111)
+    plt.plot(wave, ssp(p1), "-")
+    plt.xlabel("Wavelength (Angstrom)")
+    plt.ylabel("Flux")
+
+
+.. parsed-literal::
+
+    Parameters for non-solar abundances:  [0.1  6.   2.3  2.3  0.05 0.05 0.05 0.05]
+
+
+.. image:: building_models_files/building_models_11_2.png
+
+
+Emission lines
+~~~~~~~~~~~~~~
+
+TBD.
+
+Polynomials
+~~~~~~~~~~~
+
+TBD.
+
 
 
 
