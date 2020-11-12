@@ -47,8 +47,8 @@ SSP models.
     print("Parameter names: ", ssp.parnames)
     # Model parameters 
     p0 = np.array([0.1, 6, 2.3, 2.3])
-    print("Parameters for example: ", )
-    print(example_spectrum)
+    print("Parameters for example: ", p0)
+    fig = plt.subplot(111)
     plt.plot(wave, ssp(p0), "-")
     plt.xlabel("wavelength (Angstrom)")
     plt.ylabel("Flux")
@@ -57,8 +57,7 @@ SSP models.
 .. parsed-literal::
 
     Parameter names:  ['Z', 'Age', 'x1', 'x2']
-    Parameters for example: 
-    [0.21643    0.2184925  0.2215675  ... 0.13889    0.1391675  0.13927695]
+    Parameters for example:  [0.1 6.  2.3 2.3]
 
 
 
