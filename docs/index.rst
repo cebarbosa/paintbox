@@ -45,6 +45,8 @@ Tutorials
 
 .. toctree:: preparing_models.rst
    :maxdepth: 2
+.. toctree:: building_models.rst
+   :maxdepth: 2
 
 
 User guide

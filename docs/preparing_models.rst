@@ -27,7 +27,7 @@ For this example, we will use the packages
 and the [pPXF](`ppxf <https://pypi.org/project/ppxf/>`__ for rebinning
 the data to a logarithmic scale.
 
-::
+.. code:: ipython3
 
     import os
     
@@ -45,7 +45,7 @@ Mb). After downloading the data, it is necessary to unpack the tarfile
 (preferentially into a subdirectory, which we name emiles_v11),
 containing the 636 SSP spectra in this case.
 
-::
+.. code:: ipython3
 
     emiles_dir = os.path.join(os.getcwd(), "emiles_v11")
     w1 = 2600 # Minimum wavelength
@@ -55,7 +55,7 @@ We can use the `MILES name
 convention <http://research.iac.es/proyecto/miles/pages/ssp-models/name-convention.php>`__
 to read the files with the models.
 
-::
+.. code:: ipython3
 
     def miles_filename(specrange, imf, imfslope, metal, age):
         """ Returns the name of a fits file in the MILES library according
@@ -71,7 +71,7 @@ use in our analysis (filenames), and we also produce an astropy `Table
 object <https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table>`__
 storing the parameters of the files.
 
-::
+.. code:: ipython3
 
     specrange = "E" # options: "E", "M", "B", "R", "C"
     imf = "ch" # options: "un", "bi", "ku", "kb", "ch"
@@ -91,7 +91,7 @@ wavelength range (which is always the same for a given set of models).
 Notice that the wavelength range covered by the EMILES models is large
 (from the near-UV to the IR).
 
-::
+.. code:: ipython3
 
     h = fits.getheader(os.path.join(emiles_dir, filenames[0]))
     wave = (h['CRVAL1'] + h['CDELT1'] * (np.arange((h['NAXIS1'])) + 1 - h['CRPIX1']))
@@ -108,7 +108,7 @@ observations, or to a logarithmic scale to model the kinematics. We use
 the pPXF for this purpose, assuming a velocity scale for the rebinning
 of 200 km/s.
 
-::
+.. code:: ipython3
 
     velscale = 200
     extra_wave = 500
@@ -129,7 +129,7 @@ of 200 km/s.
 
 Now, we just need to store the processed data into a FITS file.
 
-::
+.. code:: ipython3
 
     hdu1 = fits.PrimaryHDU(ssps)
     hdu1.header["EXTNAME"] = "SSPS"
@@ -169,7 +169,7 @@ version 8, and the response functions from Conroy et al. (2018) version
 rebinning of the models, as it can handle arbitrary wavelength
 dispersions.
 
-::
+.. code:: ipython3
 
     import os
     
@@ -180,13 +180,63 @@ dispersions.
     from spectres import spectres
     from tqdm import tqdm
 
-First we define a function to handle the SSP models.
+def prepare_VCJ17(data_dir, wave, output, overwrite=False): """ Prepare
+templates for SSP models from Villaume et al. (2017).
 
 ::
 
-    def prepare_VCJ17(data_dir, wave, output, redo=False):
+       Parameters
+   ----------
+   data_dir: str
+       Path to the SSP models.
+   wave: np.array
+       Wavelength dispersion.
+   output: str
+       Name of the output file (a multi-extension FITS file)
+   overwrite: bool (optional)
+       Overwrite the output files if they already exist.
+
+   """
+   if os.path.exists(output) and not overwrite:
+       return
+   specs = sorted(os.listdir(data_dir))
+   nimf = 16
+   imfs = 0.5 + np.arange(nimf) / 5
+   x2s, x1s=  np.stack(np.meshgrid(imfs, imfs)).reshape(2, -1)
+   ssps, params = [], []
+   for spec in tqdm(specs, desc="Processing SSP files"):
+       T = float(spec.split("_")[3][1:])
+       Z = float(spec.split("_")[4][1:-8].replace("p", "+").replace(
+                   "m", "-"))
+       data = np.loadtxt(os.path.join(data_dir, spec))
+       w = data[:,0]
+       for i, (x1, x2) in enumerate(zip(x1s, x2s)):
+           params.append(Table([[Z], [T], [x1], [x2]],
+                               names=["Z", "Age", "x1", "x2"]))
+           ssp = data[:, i+1]
+           newssp = spectres(wave, w, ssp)
+           ssps.append(newssp)
+   ssps = np.array(ssps)
+   params = vstack(params)
+   hdu1 = fits.PrimaryHDU(ssps)
+   hdu1.header["EXTNAME"] = "SSPS"
+   params = Table(params)
+   hdu2 = fits.BinTableHDU(params)
+   hdu2.header["EXTNAME"] = "PARAMS"
+   # Making wavelength array
+   hdu3 = fits.BinTableHDU(Table([wave], names=["wave"]))
+   hdu3.header["EXTNAME"] = "WAVE"
+   hdulist = fits.HDUList([hdu1, hdu2, hdu3])
+   hdulist.writeto(output, overwrite=True)
+   return
+
+First we define a function to handle the SSP models.
+
+.. code:: ipython3
+
+    def prepare_VCJ17(data_dir, wave, output, overwrite=False):
         """ Prepare templates for SSP models from Villaume et al. (2017).
-        
+    
             Parameters
         ----------
         data_dir: str
@@ -195,9 +245,11 @@ First we define a function to handle the SSP models.
             Wavelength dispersion.
         output: str
             Name of the output file (a multi-extension FITS file)
-        
+        overwrite: bool (optional)
+            Overwrite the output files if they already exist.
+    
         """
-        if os.path.exists(output) and not redo:
+        if os.path.exists(output) and not overwrite:
             return
         specs = sorted(os.listdir(data_dir))
         nimf = 16
@@ -230,10 +282,11 @@ First we define a function to handle the SSP models.
         hdulist.writeto(output, overwrite=True)
         return
 
+
 Similarly, we define a function to produce the models for the response
 functions.
 
-::
+.. code:: ipython3
 
     def prepare_response_functions(data_dir, wave, outprefix, redo=False):
         """ Prepare response functions from CvD models.
@@ -248,6 +301,8 @@ functions.
             First part of the name of the response function output files. The
             response functions are stored in different files for different
             elements, named "{}_{}.fits".format(outprefix, element).
+        redo: bool (optional)
+            Overwrite output.
     
         """
         specs = sorted(os.listdir(data_dir))
@@ -310,26 +365,32 @@ functions.
 For instance, for near-infrared observations, the above routines can be
 used as follows:
 
-::
+.. code:: ipython3
 
-    w1 = 8000
-    w2 = 13000
-    velscale = 200
     # Preparing SSP models
+    w1, w2 = 8000, 13000 # Setting the wavelength window
     models_dir = "/home/kadu/Dropbox/SPINS/CvD18/" # Directory where models are stored
     ssps_dir = os.path.join(models_dir, "VCJ_v8")
+    
+    # Loading the wavelength dispersion from one of the models
     wave = np.loadtxt(os.path.join(ssps_dir, os.listdir(ssps_dir)[0]), usecols=(0,))
-    wdir = os.getcwd()
-    output = os.path.join(wdir, "VCJ17_varydoublex_wifis.fits")
+    idx = np.where((wave >= w1) & (wave <= w2))[0]
+    wave = wave[idx] # Trimming wavelength range
+    # Defining where the models should be stored
+    outdir = os.path.join(os.getcwd(), "templates")
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    output = os.path.join(outdir, "VCJ17_varydoublex.fits")
     prepare_VCJ17(ssps_dir, wave, output)
     # Preparing response functions
     rfs_dir = os.path.join(models_dir, "RFN_v3")
-    outprefix = os.path.join(os.getcwd(), "C18_rfs_wifis")
+    outprefix = os.path.join(outdir, "C18_rfs")
     prepare_response_functions(rfs_dir, wave, outprefix)
 
 
 .. parsed-literal::
 
-    Processing SSP files: 100%|██████████| 35/35 [06:51<00:00, 11.77s/it]
-    Preparing response functions: 100%|██████████| 21/21 [03:58<00:00, 11.38s/it]
+    Processing SSP files: 100%|██████████| 35/35 [04:22<00:00,  7.51s/it]
+    Preparing response functions: 100%|██████████| 21/21 [03:44<00:00, 10.69s/it]
+
 
