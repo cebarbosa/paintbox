@@ -43,7 +43,7 @@ We recommend importing **paintbox** as::
 Tutorials
 ---------
 
-.. toctree:: getting_started.rst
+.. toctree:: preparing_models.rst
    :maxdepth: 2
 
 

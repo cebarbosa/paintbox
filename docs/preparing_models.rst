@@ -1,23 +1,23 @@
-Getting started
----------------
+Preparing stellar population models
+-----------------------------------
 
 Paintbox is particularly designed to model the observed spectrum, i.e.,
 the flux from stars as a function of the wavelength, of galaxies where
 stars are not individually resolved. In these cases, the most important
 ingredient to describe the stellar features in observations are stellar
 population models, which describe the properties of an emsemble of stars
-with different properties, e.g., ages, metallicities, etc. These models
-are incredibly complex to be generated, but several groups of
-astronomers distribute their models for free for users, either publicily
-or under request. However, there is no single standard way of
+with different properties, e.g., ages, metallicities, etc. Several
+groups of astronomers distribute their models for free for users, either
+publicily or under request. However, there is no single standard way of
 distributing stellar population models, so we have to prepare the data
 from the models *before* using **paintbox**. Moreover, in practical
-applications, we also require the models to be optimized for that
-application, as a way to minimize the (often expensive) number of
-computations depending on the resolution of the data.
+applications, we also require the models to be tunned according to the
+scientific requirements of the modeling as a way to minimize the (often
+expensive) number of computations depending on the resolution of the
+data.
 
-Preparing MILES stellar populations templates
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+USING EMILES stellar populations templates
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Stellar populations models from the MILES library can be obtained in a
 variety of ways in their
@@ -40,7 +40,9 @@ downloaded in a tarball from their public ftp link available `in their
 website <http://miles.iac.es/>`__ (EMILES_BASTI_BASE_CH_FITS.tar.gz, 95
 Mb). After downloading the data, it is necessary to unpack the tarfile
 (preferentially into a subdirectory, which we name emiles_v11),
-containing the 636 SSP spectra in this case. ::
+containing the 636 SSP spectra in this case.
+
+::
 
     emiles_dir = os.path.join(os.getcwd(), "emiles_v11")
     w1 = 2600 # Minimum wavelength
@@ -48,7 +50,9 @@ containing the 636 SSP spectra in this case. ::
 
 We can use the `MILES name
 convention <http://research.iac.es/proyecto/miles/pages/ssp-models/name-convention.php>`__
-to read the files with the models. ::
+to read the files with the models.
+
+::
 
     def miles_filename(specrange, imf, imfslope, metal, age):
         """ Returns the name of a fits file in the MILES library according
@@ -62,7 +66,9 @@ to read the files with the models. ::
 Below we produce a list containing all the spectra that we are going to
 use in our analysis (filenames), and we also produce an astropy `Table
 object <https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table>`__
-storing the parameters of the files. ::
+storing the parameters of the files.
+
+::
 
     specrange = "E" # options: "E", "M", "B", "R", "C"
     imf = "ch" # options: "un", "bi", "ku", "kb", "ch"
@@ -80,7 +86,9 @@ storing the parameters of the files. ::
 We use the information in the header of one spectrum to determine the
 wavelength range (which is always the same for a given set of models).
 Notice that the wavelength range covered by the EMILES models is large
-(from the near-UV to the IR). ::
+(from the near-UV to the IR).
+
+::
 
     h = fits.getheader(os.path.join(emiles_dir, filenames[0]))
     wave = (h['CRVAL1'] + h['CDELT1'] * (np.arange((h['NAXIS1'])) + 1 - h['CRPIX1']))
@@ -95,7 +103,9 @@ optimized for a galaxy according to their redshift). We may also rebin
 the data, either to have the same wavelength dispersion of the
 observations, or to a logarithmic scale to model the kinematics. We use
 the pPXF for this purpose, assuming a velocity scale for the rebinning
-of 200 km/s. ::
+of 200 km/s.
+
+::
 
     velscale = 200
     extra_wave = 500
@@ -114,7 +124,9 @@ of 200 km/s. ::
         flux_log = ppxf_util.log_rebin(wrange, flambda, velscale=velscale)[0]
         ssps[i] = flux_log
 
-Now, we just need to store the processed data into a FITS file.::
+Now, we just need to store the processed data into a FITS file.
+
+::
 
     hdu1 = fits.PrimaryHDU(ssps)
     hdu1.header["EXTNAME"] = "SSPS"
@@ -125,7 +137,6 @@ Now, we just need to store the processed data into a FITS file.::
     hdulist = fits.HDUList([hdu1, hdu2, hdu3])
     output = "emiles_chabrier_w{}_{}_vel{}.fits".format(w1, w2, velscale)
     hdulist.writeto(output, overwrite=True)
-
 
 In this particular example, we will obtain a multi-extension FITS file
 named “emiles_chabrier_w2600_10000_vel200.fits”, which contains the 2D
@@ -153,22 +164,27 @@ version 8, and the response functions from Conroy et al. (2018) version
 3. In this example, we use
 [SpectRes](https://spectres.readthedocs.io/en/latest/} to perform the
 rebinning of the models, as it can handle arbitrary wavelength
-dispersions. ::
+dispersions.
+
+::
 
     import os
     
     import numpy as np
     from astropy.table import Table, vstack
     from astropy.io import fits
-    import ppxf.ppxf_util as util
+    from ppxf import ppxf_util
     from spectres import spectres
+    from tqdm import tqdm
 
-First we define a function to handle the SSP models.::
+First we define a function to handle the SSP models.
+
+::
 
     def prepare_VCJ17(data_dir, wave, output, redo=False):
         """ Prepare templates for SSP models from Villaume et al. (2017).
         
-        Parameters
+            Parameters
         ----------
         data_dir: str
             Path to the SSP models.
@@ -185,7 +201,7 @@ First we define a function to handle the SSP models.::
         imfs = 0.5 + np.arange(nimf) / 5
         x2s, x1s=  np.stack(np.meshgrid(imfs, imfs)).reshape(2, -1)
         ssps, params = [], []
-        for spec in specs:
+        for spec in tqdm(specs, desc="Processing SSP files"):
             T = float(spec.split("_")[3][1:])
             Z = float(spec.split("_")[4][1:-8].replace("p", "+").replace(
                         "m", "-"))
@@ -212,22 +228,24 @@ First we define a function to handle the SSP models.::
         return
 
 Similarly, we define a function to produce the models for the response
-functions.::
+functions.
 
-    def prepare_response_functions(data_dir, wave, out):
-        """ Prepare response functions from CvD models. 
-        
+::
+
+    def prepare_response_functions(data_dir, wave, outprefix, redo=False):
+        """ Prepare response functions from CvD models.
+    
         Parameters
         ----------
         data_dir: str
             Path to the response function files
         wave: np.array
             Wavelength dispersion.
-        out: str
-            First part of the name of the response function output files. The 
+        outprefix: str
+            First part of the name of the response function output files. The
             response functions are stored in different files for different
-            elements, named "{}_{}.fits".format(out, element).
-        
+            elements, named "{}_{}.fits".format(outprefix, element).
+    
         """
         specs = sorted(os.listdir(data_dir))
         # Read one spectrum to get name of columns
@@ -244,7 +262,9 @@ functions.::
                         any(c in _ for c in ["+", "-"])])
         signal = ["+", "-"]
         for element in tqdm(elements, desc="Preparing response functions"):
-            output = "{}_{}.fits".format(out, element.replace("/", ""))
+            output = "{}_{}.fits".format(outprefix, element.replace("/", ""))
+            if os.path.exists(output) and not redo:
+                continue
             params = []
             rfs = []
             for spec in specs:
@@ -284,18 +304,30 @@ functions.::
             hdulist = fits.HDUList([hdu1, hdu2, hdu3])
             hdulist.writeto(output, overwrite=True)
 
-These routines can be used as follows::
+For instance, for near-infrared observations, the above routines can be
+used as follows:
+
+::
 
     w1 = 8000
     w2 = 13000
     velscale = 200
-    logLam, velscale = util.log_rebin([w1, w2], np.ones(10),
-                                               velscale=velscale)[1:]
-    wdir = os.path.join(os.getcwd(), "templates")
+    # Using pPXF to set a log dispersion
+    logLam = ppxf_util.log_rebin([w1, w2], np.ones(10), velscale=velscale)[1]
     wave = np.exp(logLam)
-    ssps_dir = os.path.join(wdir, "CvD18/VCJ_v8")
-    output = os.path.join(wdir, "templates/VCJ17_varydoublex_wifis.fits")
+    # Preparing SSP models
+    models_dir = "/home/kadu/Dropbox/SPINS/CvD18/" # Directory where models are stored
+    ssps_dir = os.path.join(models_dir, "VCJ_v8") 
+    wdir = os.getcwd()
+    output = os.path.join(wdir, "VCJ17_varydoublex_wifis.fits")
     prepare_VCJ17(ssps_dir, wave, output)
-    rfs_dir = os.path.join(os.getcwd(), "CvD18/RFN_v3")
-    out = os.path.join(os.get, "templates/C18_rfs_wifis")
-    prepare_response_functions(rfs_dir, wave, out)
+    # Preparing response functions
+    rfs_dir = os.path.join(models_dir, "RFN_v3")
+    outprefix = os.path.join(rfs_dir, "C18_rfs_wifis")
+    prepare_response_functions(rfs_dir, wave, outprefix)
+
+
+.. parsed-literal::
+
+    Preparing response functions: 100%|██████████| 21/21 [02:29<00:00,  7.13s/it]
+
