@@ -25,13 +25,16 @@ variety of ways in their
 For this example, we will use the packages
 `astropy <https://www.astropy.org>`__ to handle FITS fiels and tables,
 and the [pPXF](`ppxf <https://pypi.org/project/ppxf/>`__ for rebinning
-the data to a logarithmic scale. ::
+the data to a logarithmic scale.
+
+::
 
     import os
     
     import numpy as np
     from astropy.io import fits 
     from astropy.table import Table
+    from ppxf import ppxf_util
 
 For this example, we will use a set of single stellar population (SSP)
 templates of the E-MILES models (version 11) produced with BASTI
@@ -162,7 +165,7 @@ Si, Ca, Ti, and Fe. Below we show how to handle these models for
 library <https://ui.adsabs.harvard.edu/abs/2017ApJS..230...23V/abstract>`__
 version 8, and the response functions from Conroy et al. (2018) version
 3. In this example, we use
-[SpectRes](https://spectres.readthedocs.io/en/latest/} to perform the
+`SpectRes <https://spectres.readthedocs.io/en/latest/>`__ to perform the
 rebinning of the models, as it can handle arbitrary wavelength
 dispersions.
 
@@ -312,22 +315,21 @@ used as follows:
     w1 = 8000
     w2 = 13000
     velscale = 200
-    # Using pPXF to set a log dispersion
-    logLam = ppxf_util.log_rebin([w1, w2], np.ones(10), velscale=velscale)[1]
-    wave = np.exp(logLam)
     # Preparing SSP models
     models_dir = "/home/kadu/Dropbox/SPINS/CvD18/" # Directory where models are stored
-    ssps_dir = os.path.join(models_dir, "VCJ_v8") 
+    ssps_dir = os.path.join(models_dir, "VCJ_v8")
+    wave = np.loadtxt(os.path.join(ssps_dir, os.listdir(ssps_dir)[0]), usecols=(0,))
     wdir = os.getcwd()
     output = os.path.join(wdir, "VCJ17_varydoublex_wifis.fits")
     prepare_VCJ17(ssps_dir, wave, output)
     # Preparing response functions
     rfs_dir = os.path.join(models_dir, "RFN_v3")
-    outprefix = os.path.join(rfs_dir, "C18_rfs_wifis")
+    outprefix = os.path.join(os.getcwd(), "C18_rfs_wifis")
     prepare_response_functions(rfs_dir, wave, outprefix)
 
 
 .. parsed-literal::
 
-    Preparing response functions: 100%|██████████| 21/21 [02:29<00:00,  7.13s/it]
+    Processing SSP files: 100%|██████████| 35/35 [06:51<00:00, 11.77s/it]
+    Preparing response functions: 100%|██████████| 21/21 [03:58<00:00, 11.38s/it]
 
