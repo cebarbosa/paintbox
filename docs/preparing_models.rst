@@ -180,6 +180,8 @@ dispersions.
     from spectres import spectres
     from tqdm import tqdm
 
+First we define a function to handle the SSP models.
+
 ::
 
     def prepare_VCJ17(data_dir, wave, output, overwrite=False):
@@ -229,7 +231,6 @@ dispersions.
         hdulist = fits.HDUList([hdu1, hdu2, hdu3])
         hdulist.writeto(output, overwrite=True)
         return
-    First we define a function to handle the SSP models.
 
 ::
 
