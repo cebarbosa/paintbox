@@ -232,56 +232,6 @@ First we define a function to handle the SSP models.
         hdulist.writeto(output, overwrite=True)
         return
 
-::
-
-    def prepare_VCJ17(data_dir, wave, output, overwrite=False):
-        """ Prepare templates for SSP models from Villaume et al. (2017).
-    
-            Parameters
-        ----------
-        data_dir: str
-            Path to the SSP models.
-        wave: np.array
-            Wavelength dispersion.
-        output: str
-            Name of the output file (a multi-extension FITS file)
-        overwrite: bool (optional)
-            Overwrite the output files if they already exist.
-    
-        """
-        if os.path.exists(output) and not overwrite:
-            return
-        specs = sorted(os.listdir(data_dir))
-        nimf = 16
-        imfs = 0.5 + np.arange(nimf) / 5
-        x2s, x1s=  np.stack(np.meshgrid(imfs, imfs)).reshape(2, -1)
-        ssps, params = [], []
-        for spec in tqdm(specs, desc="Processing SSP files"):
-            T = float(spec.split("_")[3][1:])
-            Z = float(spec.split("_")[4][1:-8].replace("p", "+").replace(
-                        "m", "-"))
-            data = np.loadtxt(os.path.join(data_dir, spec))
-            w = data[:,0]
-            for i, (x1, x2) in enumerate(zip(x1s, x2s)):
-                params.append(Table([[Z], [T], [x1], [x2]],
-                                    names=["Z", "Age", "x1", "x2"]))
-                ssp = data[:, i+1]
-                newssp = spectres(wave, w, ssp)
-                ssps.append(newssp)
-        ssps = np.array(ssps)
-        params = vstack(params)
-        hdu1 = fits.PrimaryHDU(ssps)
-        hdu1.header["EXTNAME"] = "SSPS"
-        params = Table(params)
-        hdu2 = fits.BinTableHDU(params)
-        hdu2.header["EXTNAME"] = "PARAMS"
-        # Making wavelength array
-        hdu3 = fits.BinTableHDU(Table([wave], names=["wave"]))
-        hdu3.header["EXTNAME"] = "WAVE"
-        hdulist = fits.HDUList([hdu1, hdu2, hdu3])
-        hdulist.writeto(output, overwrite=True)
-        return
-
 
 Similarly, we define a function to produce the models for the response
 functions.

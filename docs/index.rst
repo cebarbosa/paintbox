@@ -1,6 +1,5 @@
-Documentation for paintbox
-==========================
-
+Documentation for **paintbox**
+==============================
 
 Overview
 --------
@@ -14,20 +13,25 @@ classes of objects that compose the spectral features, such as stellar
 populations, emission lines, extinction laws, etc, with a high degree of
 customization.
 
+**Paintbox** is a open-source project, and contributions to improve/ extend its
+capabilities are welcome. Please visit the project's
+`github page <https://github.com/cebarbosa/paintbox>`_.
+
 Requirements
 ------------
 
 **paintbox** has the followong requirements:
 
 - `Python <https://www.python.org/>`_ 3.7 or later
-- astropy 4.0 or later
+- `astropy <https://www.astropy.org/>`_ 4.0 or later
+- `spectres <https://spectres.readthedocs.io/en/latest/>`_
 
-Optional requirements for tutorials
+Optional requirements for tutorials include also
 
-- pymc3
-- ppxf
-- matplotlib
-- emcee
+- `pymc3 <https://docs.pymc.io/>`_
+- `ppxf <http://www-astro.physics.ox.ac.uk/~mxc/software/>`_
+- `matplotlib <https://matplotlib.org/>`_
+- `emcee <https://emcee.readthedocs.io/en/stable/>`_
 
 Installation
 ------------
@@ -36,14 +40,8 @@ Currently, the installation of **paintbox** is available with pip::
 
     pip install paintbox
 
-We recommend importing **paintbox** as::
-
-    import paintbox as pb
-
-Contribute
-----------
-**Paintbox** is a open-source project, and contributions to improve/ extend its
-capabilities are welcome. Please visit the project's `github page <https://github.com/cebarbosa/paintbox>`_.
+Instalation from the source is also possible through the project's `github page
+<https://github.com/cebarbosa/paintbox>`_.
 
 Tutorials
 ---------
