@@ -13,7 +13,7 @@ from __future__ import print_function
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter1d
 
-def broad2res(w, flux, obsres, res=2.95, fluxerr=None):
+def broad2res(w, flux, obsres, outres, fluxerr=None):
     """ Broad resolution of observed spectra to a given resolution.
 
     Input Parameters
@@ -27,7 +27,7 @@ def broad2res(w, flux, obsres, res=2.95, fluxerr=None):
     obsres : float or np.array
         Observed wavelength spectral resolution FWHM.
 
-    res: float
+    outres: float
         Resolution FWHM  of the spectra after the broadening.
 
     fluxerr: np.array
@@ -43,7 +43,7 @@ def broad2res(w, flux, obsres, res=2.95, fluxerr=None):
     dw = np.median(dws)
     assert np.all(np.isclose(dws, dw)), \
         "Wavelength dispersion has to be constant!"
-    sigma_diff = np.sqrt(res**2 - obsres**2) / 2.3548 / dw
+    sigma_diff = np.sqrt(outres ** 2 - obsres ** 2) / 2.3548 / dw
     diag = np.diag(flux)
     for j in range(len(w)):
         diag[j] = gaussian_filter1d(diag[j], sigma_diff[j], mode="constant",

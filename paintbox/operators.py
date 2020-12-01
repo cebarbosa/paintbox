@@ -18,13 +18,14 @@ from spectres import spectres
 __all__ = ["LOSVDConv", "Resample", "SEDSum", "SEDMul", "ConstrainModel"]
 
 class LOSVDConv():
-    def __init__(self, obj, velscale):
+    def __init__(self, obj, velscale, losvdpars=None):
         self.obj = obj
         self.wave = obj.wave
+        losvdpars = ["V", "sigma"] if losvdpars is None else losvdpars
         if not hasattr(velscale, "unit"):
             velscale = velscale * u.Unit("km/s")
         self.velscale = velscale.to("km/s").value
-        self.parnames = obj.parnames + ["V", "sigma"]
+        self.parnames = obj.parnames + losvdpars
         self.nparam = len(self.parnames)
         self.shape = (self.nparam, len(self.wave))
 
