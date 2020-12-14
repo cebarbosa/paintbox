@@ -105,17 +105,17 @@ class NormalLogLike():
         self.observed = observed
         self.obserr = np.ones_like(self.observed) if obserr is None else obserr
         self.model = model
-        self.N = len(observed)
         self.nparams = self.model.nparams
         self.mask = np.full(len(self.observed), True) if mask is None else \
             mask
+        self.N = self.mask.astype(np.int).sum()
         self.parnames = self.model.parnames
 
     def __call__(self, theta):
-        e_i = self.model(theta) - self.observed
+        e_i = (self.model(theta) - self.observed)[self.mask]
         LLF = - 0.5 * self.N * np.log(2 * np.pi) + \
-              - 0.5 * np.sum(np.power(e_i / self.obserr, 2)) \
-              - 0.5 * np.sum(np.log(self.obserr ** 2))
+              - 0.5 * np.sum(np.power(e_i / self.obserr[self.mask], 2)) \
+              - 0.5 * np.sum(np.log(self.obserr[self.mask] ** 2))
         return float(LLF)
 
     def gradient(self, theta):
