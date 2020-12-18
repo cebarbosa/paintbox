@@ -70,12 +70,12 @@ class StudT2LogLike():
 
     def __call__(self, theta):
         S, nu = theta[-2:]
-        e_i = self.model(theta[:-2]) - self.observed
-        x = 1. + np.power(e_i / S / self.obserr, 2.) / (nu - 2)
+        e_i = self.model(theta[:-2])[self.mask] - self.observed[self.mask]
+        x = 1. + np.power(e_i / S / self.obserr[self.mask], 2.) / (nu - 2)
         LLF = self.N * np.log(gamma(0.5 * (nu + 1)) /
                          np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu))  \
              - 0.5 * (nu + 1) * np.sum(np.log(x)) \
-             - 0.5 * np.sum(np.log((S * self.obserr) ** 2))
+             - 0.5 * np.sum(np.log((S * self.obserr[self.mask]) ** 2))
         return float(LLF)
 
     # def gradient(self, theta):
