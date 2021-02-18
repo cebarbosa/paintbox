@@ -131,16 +131,17 @@ class StudT2LogLike(LogLike):
                                   "loglikelyhood.")
 
 class JointLogLike():
-    def __init__(self, ll1, ll2):
-        self.ll1 = ll1
-        self.ll2 = ll2
-        self.parnames = list(dict.fromkeys(ll1.parnames + ll2.parnames))
+    def __init__(self, logp1, logp2):
+        self.logp1 = logp1
+        self.logp2 = logp2
+        self.parnames = list(dict.fromkeys(logp1.parnames + logp2.parnames))
         self._idxs = []
-        for parlist in [ll1.parnames, ll2.parnames]:
+        for parlist in [logp1.parnames, logp2.parnames]:
             idxs = []
             for p in parlist:
                 idxs.append(self.parnames.index(p))
             self._idxs.append(np.array(idxs))
 
     def __call__(self, theta):
-        return self.ll1(theta[self._idxs[0]]) + self.ll2(theta[self._idxs[1]])
+        return self.logp1(theta[self._idxs[0]]) + \
+               self.logp2(theta[self._idxs[1]])

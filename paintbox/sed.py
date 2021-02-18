@@ -20,10 +20,11 @@ __all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
 
 class ParametricModel():
     """
-    Class used for interpolation and call of templates parametrically.
+    Interpolation of SED model templates parametrically.
 
     This class allows the linear interpolation of SED templates, such as SSP
     models, based on a table of parameters and their SEDs.
+
     Warning: The linear interpolation is currently based on
     scipy.RegularGridInterpolator for better performance with large number of
     input models, thus the input data must be in the form of a regular grid.
@@ -109,11 +110,11 @@ class ParametricModel():
         return self._interpolator(theta)[0]
 
     def __add__(self, o):
-        """ Multiplication between SED components. """
+        """ Addition between two SED components. """
         return SEDSum(self, o)
 
     def __mul__(self, o):
-        """ Sum of SED components. """
+        """  Multiplication between two SED components. """
         return SEDMul(self, o)
 
     def gradient(self, theta, eps=1e-6):
@@ -126,9 +127,11 @@ class ParametricModel():
         Parameters
         ----------
         theta: ndarray
-                Point where the gradient of the model is computed,
-                with parameters in the same order of parnames. Points outside
-                of the convex hull of the models are set to zero.
+            Point where the gradient of the model is computed,
+            with parameters in the same order of parnames. Points outside
+            of the convex hull of the models are set to zero.
+        eps: float or ndarray, optional
+            Step used in the finite difference calculation. Default is 1e-6.
 
         """
         # Clipping theta to avoid border problems
@@ -149,29 +152,75 @@ class ParametricModel():
         return grads
 
 class NonParametricModel():
-    def __init__(self, wave, templates, em_names=None):
+    """
+    Weighted linear combination of SED models.
+
+    This class allows the combination of a set of templates based on
+    different weights.
+
+    Attributes
+    ----------
+    parnames: list
+        Name of the templates.
+
+    Methods
+    -------
+    __call__: Dot product of templates with a vector of weights theta.
+    gradient: The gradient of the dot product with weights theta.
+
+    """
+    def __init__(self, wave, templates, names=None):
+        """ 
+        Parameters
+        ----------
+        wave: ndarray, Quantity
+            Common wavelenght array of all templates.
+        templates: 2D ndarray
+            SED models with dimensions (N, len(wave)), where N=number of
+            templates.
+        names: list
+            Name of the templates. Defaults to [temp1, ..., tempN]
+        """
         self.wave = wave
         self.templates = np.atleast_2d(templates)
-        self.nparams = len(self.templates)
-        self.n_em = len(templates)
-        self.em_names = ["emission{}".format(n) for n in range(self.n_em)] if \
-            em_names is None else em_names
-        self.parnames = self.em_names
-        self.nparams = len(self.parnames)
+        self._nparams = len(self.templates)
+        self._n = len(templates)
+        self.names = ["temp{}".format(n) for n in range(self._n)] if \
+            names is None else names
+        self.parnames = self.names
+        self._nparams = len(self.parnames)
 
     def __call__(self, theta):
+        """ Returns the dot product of a vector theta with the templates.
+
+        Parameters
+        ----------
+        theta: ndarray
+            Vector with weights of the templates.
+
+        Returns
+        Dot product of theta with templates.
+        """
         return np.dot(theta, self.templates)
 
     def __add__(self, o):
+        """ Addition between two SED components. """
         return SEDSum(self, o)
 
     def __mul__(self, o):
+        """  Multiplication between two SED components. """
         return SEDMul(self, o)
 
     def gradient(self, theta):
+        """ Gradient of the dot product with weights theta.
+
+        This routine returns simply the templates, but it has an argument
+        theta only to keep calls consistently across different SED
+        components. """
         return self.templates
 
 class Polynomial():
+    
     def __init__(self, wave, degree):
         self.wave = wave
         self.degree = degree
