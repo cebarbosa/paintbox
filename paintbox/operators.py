@@ -99,8 +99,8 @@ class SEDSum():
         self._grad_shape = (self.nparams, len(self.wave))
 
     def __call__(self, theta):
-        theta1 = theta[:self.o1.nparams]
-        theta2 = theta[self.o1.nparams:]
+        theta1 = theta[:self.o1._nparams]
+        theta2 = theta[self.o1._nparams:]
         return self.o1(theta1) + self.o2(theta2)
 
     def __add__(self, o):
@@ -110,7 +110,7 @@ class SEDSum():
         return SEDMul(self, o)
 
     def gradient(self, theta):
-        n = self.o1.nparams
+        n = self.o1._nparams
         theta1 = theta[:n]
         theta2 = theta[n:]
         grad = np.zeros(self._grad_shape)
@@ -130,8 +130,8 @@ class SEDMul():
         self._grad_shape = (self.nparams, len(self.wave))
 
     def __call__(self, theta):
-        theta1 = theta[:self.o1.nparams]
-        theta2 = theta[self.o1.nparams:]
+        theta1 = theta[:self.o1._nparams]
+        theta2 = theta[self.o1._nparams:]
         return self.o1(theta1) * self.o2(theta2)
 
     def __add__(self, o):
@@ -141,7 +141,7 @@ class SEDMul():
         return SEDMul(self, o)
 
     def gradient(self, theta):
-        n = self.o1.nparams
+        n = self.o1._nparams
         theta1 = theta[:n]
         theta2 = theta[n:]
         grad = np.zeros(self._grad_shape)

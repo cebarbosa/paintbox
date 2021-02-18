@@ -19,14 +19,47 @@ from .operators import SEDMul, SEDSum
 __all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
 
 class ParametricModel():
-    """ Linearly interpolated SSP models."""
+    """
+    Class used for interpolation and call of templates parametrically.
+
+    This class allows the linear interpolation of SED templates, such as SSP
+    models, based on a table of parameters and their SEDs.
+    Warning: The linear interpolation is currently based on
+    scipy.RegularGridInterpolator for better performance with large number of
+    input models, thus the input data must be in the form of a regular grid.
+
+    Attributes
+    ----------
+    parnames: list
+        Name of the variables of the SED model.
+
+    Methods
+    -------
+    __call__
+        Computation of interpolated model at a point, with parameters in the
+        order provided by the parnames list.
+    gradient
+        Gradient of the interpolated model at a given point.
+
+    """
     def __init__(self, wave, params, data):
+        """
+        Parameters
+        ----------
+        wave: ndarray, Quantity
+            Wavelenght array of the model.
+        params: astropy.table.Table
+            Table with parameters of the models.
+        data: 2D ndarray
+            The SED templates with dimensions (len(params), len(wave))
+
+        """
         self.wave = wave
         self.params = params
         self.data = data
         self.parnames = self.params.colnames
         self._n = len(wave)
-        self.nparams = len(self.parnames)
+        self._nparams = len(self.parnames)
         # Interpolating models
         x = self.params.as_array()
         pdata = x.view((x.dtype[0], len(x.dtype.names)))
@@ -44,8 +77,8 @@ class ParametricModel():
                 idx = (pdata == x).all(axis=1).nonzero()[0]
                 data[multi_idx] = self.data[idx]
                 it.iternext()
-        self.f = RegularGridInterpolator(nodes, data, bounds_error=False,
-                                         fill_value=0)
+        self._interpolator = RegularGridInterpolator(nodes, data,
+                             bounds_error=False, fill_value=0)
         ########################################################################
         # Get grid points to handle derivatives
         inner_grid = []
@@ -55,38 +88,60 @@ class ParametricModel():
             thetamin.append(np.min(self.params[par].data))
             thetamax.append(np.max(self.params[par].data))
             inner_grid.append(np.unique(self.params[par].data)[1:-1])
-        self.thetamin = np.array(thetamin)
-        self.thetamax = np.array(thetamax)
-        self.inner_grid = inner_grid
+        self._thetamin = np.array(thetamin)
+        self._thetamax = np.array(thetamax)
+        self._inner_grid = inner_grid
 
     def __call__(self, theta):
-        return self.f(theta)[0]
+        """ Call for interpolated model at a given point theta.
+
+        Parameters
+        ----------
+        theta: ndarray
+            Point where the model is computed, with parameters in
+            the same order of parnames. Points outside of the convex hull of
+            the models are set to zero.
+
+        Returns
+        -------
+        SED model at location theta.
+        """
+        return self._interpolator(theta)[0]
 
     def __add__(self, o):
+        """ Multiplication between SED components. """
         return SEDSum(self, o)
 
     def __mul__(self, o):
+        """ Sum of SED components. """
         return SEDMul(self, o)
 
     def gradient(self, theta, eps=1e-6):
+        """ Gradient of models at a given point theta.
+
+        Gradients are computed with simple finite difference. If the input
+        point is among the points used for interpolation, the gradient is not
+        defined, returning zero instead.
+
+        Parameters
+        ----------
+        theta: ndarray
+                Point where the gradient of the model is computed,
+                with parameters in the same order of parnames. Points outside
+                of the convex hull of the models are set to zero.
+
+        """
         # Clipping theta to avoid border problems
-        theta = np.maximum(theta, self.thetamin + 2 * eps)
-        theta = np.minimum(theta, self.thetamax - 2 * eps)
-        grads = np.zeros((self.nparams, self._n))
+        theta = np.maximum(theta, self._thetamin + 2 * eps)
+        theta = np.minimum(theta, self._thetamax - 2 * eps)
+        grads = np.zeros((self._nparams, self._n))
         for i,t in enumerate(theta):
-            epsilon = np.zeros(self.nparams)
+            epsilon = np.zeros(self._nparams)
             epsilon[i] = eps
             # Check if data point is in inner grid
-            in_grid = t in self.inner_grid[i]
+            in_grid = t in self._inner_grid[i]
             if in_grid:
                 continue
-                # tp1 = theta + 2 * epsilon
-                # tm1 = theta + epsilon
-                # grad1 = (self.__call__(tp1) - self.__call__(tm1)) / (2 * eps)
-                # tp2 = theta - epsilon
-                # tm2 = theta - 2 * epsilon
-                # grad2 = (self.__call__(tp2) - self.__call__(tm2)) / (2 * eps)
-                # grads[i] = 0.5 * (grad1 + grad2)
             else:
                 tp = theta + epsilon
                 tm = theta - epsilon
