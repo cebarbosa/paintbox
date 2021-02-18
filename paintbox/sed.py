@@ -36,10 +36,10 @@ class ParametricModel():
 
     Methods
     -------
-    __call__
-        Computation of interpolated model at a point, with parameters in the
-        order provided by the parnames list.
-    gradient
+    __call__(theta)
+        Computation of interpolated model at a point theta, with parameters
+        in the order provided by the parnames list.
+    gradient(theta)
         Gradient of the interpolated model at a given point.
 
     """
@@ -165,8 +165,10 @@ class NonParametricModel():
 
     Methods
     -------
-    __call__: Dot product of templates with a vector of weights theta.
-    gradient: The gradient of the dot product with weights theta.
+    __call__(theta)
+        Dot product of templates with a vector of weights theta.
+    gradient(theta)
+        The gradient of the dot product with weights theta.
 
     """
     def __init__(self, wave, templates, names=None):
@@ -179,13 +181,13 @@ class NonParametricModel():
             SED models with dimensions (N, len(wave)), where N=number of
             templates.
         names: list
-            Name of the templates. Defaults to [temp1, ..., tempN]
+            Name of the templates. Defaults to [temp, ..., tempN]
         """
         self.wave = wave
         self.templates = np.atleast_2d(templates)
         self._nparams = len(self.templates)
         self._n = len(templates)
-        self.names = ["temp{}".format(n) for n in range(self._n)] if \
+        self.names = ["temp{}".format(n+1) for n in range(self._n)] if \
             names is None else names
         self.parnames = self.names
         self._nparams = len(self.parnames)
@@ -220,26 +222,65 @@ class NonParametricModel():
         return self.templates
 
 class Polynomial():
-    
+    """
+    Polynomial SED component.
+
+    This class produces Legendre polynomials that can be either added or
+    multiplied with other SED components.
+
+    Attributes
+    ----------
+    wave: ndarray, Quantity
+        Wavelength array of the polynomials
+    degree: int
+        Order of the Legendre polynomial.
+    poly: 2D ndarray
+        Static Legendre polynomials array used in the calculations.
+    parnames: list
+        List with the name of the individual polynomials, set to
+        [p0, p1, ..., pdegree] at initialization.
+
+    Methods
+    -------
+    __call__(theta)
+        Calculation of the polynomial with weights theta.
+
+    gradient(theta)
+        Determination of gradient of polynomial with weights theta.
+    """
+
     def __init__(self, wave, degree):
+        """
+        Parameters
+        ----------
+        wave: ndarray, Quantity
+            Wavelength array of the polynomials
+        degree: int
+            Order of the Legendre polynomial.
+
+        """
         self.wave = wave
         self.degree = degree
-        self.x = 2 * ((self.wave - self.wave.min()) /
-                      (self.wave.max() - self.wave.min()) - 0.5)
-        self.poly = np.zeros((self.degree + 1, len(self.x)))
+        self._x = 2 * ((self.wave - self.wave.min()) /
+                       (self.wave.max() - self.wave.min()) - 0.5)
+        self.poly = np.zeros((self.degree + 1, len(self._x)))
         for i in np.arange(self.degree + 1):
-            self.poly[i] = legendre(i)(self.x)
+            self.poly[i] = legendre(i)(self._x)
         self.parnames = ["p{}".format(i) for i in np.arange(degree+1)]
-        self.nparams = len(self.parnames)
+        self._nparams = len(self.parnames)
 
     def __call__(self, theta):
+        """ Calculation of the polynomial with weights theta. """
         return np.dot(theta, self.poly)
 
     def __add__(self, o):
+        """ Addition between two SED components. """
         return SEDSum(self, o)
 
     def __mul__(self, o):
+        """ Multiplicative between two SED components. """
         return SEDMul(self, o)
 
     def gradient(self, theta):
+        """ Gradient of the polynomial with weights theta. """
         return self.poly
