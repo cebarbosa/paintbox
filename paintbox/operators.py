@@ -11,26 +11,66 @@ Basic classes to build the SED/spectra of galaxies
 from __future__ import print_function, division
 
 import numpy as np
-import astropy.units as u
+import astropy.constants as const
 from scipy.ndimage import convolve1d
 from spectres import spectres
 
-__all__ = ["LOSVDConv", "Resample", "SEDSum", "SEDMul", "ConstrainModel"]
+__all__ = ["LOSVDConv", "Resample", "CompositeSED", "Constrain"]
 
 class LOSVDConv():
-    def __init__(self, obj, velscale, losvdpars=None):
+    """ Convolution of a SED model with the LOS Velocity Distribution.
+
+    This class allows the convolution of a SED model with the line--of-sight
+    velocity distribution. This class requires that the input SED model has a
+    logarithmic-scaled wavelength dispersion. Currently, this operation only
+    supports LOSVDs with two moments (velocity and velocity dispersion).
+    
+    Attributes
+    ----------
+    velscale: Quantity
+        Velocity scale of the wavelength array.
+    parnames: list
+        Updated list of parameters, including the input SED object parameter
+        names and the LOSVD parameters.
+
+    Methods
+    -------
+    __call__(theta)
+        Performs the convolution of the SED model with the LOSVD using the
+        parameter vector theta, with variables in the same order as parnames.
+    gradient(theta)
+        Calculates the gradient of the convolved SED model at the point theta.
+    """
+    def __init__(self, obj, losvdpars=None, vunit="km/s"):
+        """
+        Parameters
+        ----------
+        obj: SED model
+            Input paintbox SED model to be convolved with the LOSVD.
+        losvdpars: list
+            Name of the LOSVD parameters appended to the input paranames.
+            Defaults to [V, sigma].
+        vunit: str
+            Units used for velocity variables. Defaults to km/s.
+
+        """
         self.obj = obj
         self.wave = obj.wave
-        losvdpars = ["V", "sigma"] if losvdpars is None else losvdpars
-        if not hasattr(velscale, "unit"):
-            velscale = velscale * u.Unit("km/s")
-        self.velscale = velscale.to("km/s").value
-        self.parnames = obj.parnames + losvdpars
-        self.nparam = len(self.parnames)
-        self.shape = (self.nparam, len(self.wave))
+        # Check if velocity scale is constant
+        velscale = np.diff(np.log(self.wave) * const.c.to(vunit))
+        msg = "LOSVD convolution requires wavelength array with constant " \
+              "velocity scale."
+        assert np.all(np.isclose(velscale, velscale[0])), msg
+        self.velscale = velscale[0]
+        self._v = self.velscale.value
+        self.losvdpars = ["V", "sigma"] if losvdpars is None else losvdpars
+        self.parnames = obj.parnames + self.losvdpars
+        self._nparams = len(self.parnames)
+        self._shape = (self._nparams, len(self.wave))
 
     def _kernel_arrays(self, p):
-        x0, sigx = p / self.velscale
+        """ Produces kernels used in the convolution. """
+        x0, sigx = p / self._v
         dx = int(np.ceil(np.max(abs(x0) + 5 * sigx)))
         n = 2 * dx + 1
         x = np.linspace(-dx, dx, n)
@@ -40,20 +80,16 @@ class LOSVDConv():
         return y, k
 
     def __call__(self, theta):
+        """ Performs convolution of input model with LOSVD."""
         z = self.obj(theta[:-2])
         y, k = self._kernel_arrays(theta[-2:])
         return convolve1d(z, k)
 
-    def __add__(self, o):
-        return SEDSum(self, o)
-
-    def __mul__(self, o):
-        return SEDMul(self, o)
-
     def gradient(self, theta):
+        """ Gradient of the convolved model. """
         p1 = theta[:-2]
         p2 = theta[-2:]
-        grad = np.zeros(self.shape)
+        grad = np.zeros(self._shape)
         model = self.obj(theta[:-2])
         modelgrad = self.obj.gradient(p1)
         y, k = self._kernel_arrays(p2)
@@ -63,98 +99,118 @@ class LOSVDConv():
         grad[-1] = convolve1d(model, (y * y - 1.) * k / p2[1])
         return grad
 
+    def __add__(self, o):
+        """ Addition of this output model with other SED components. """
+        return CompositeSED(self, o, "+")
+
+    def __mul__(self, o):
+        """ Multiplication of this output model with other SED components. """
+        return CompositeSED(self, o, "*")
+
 class Resample():
+    """ Resampling of SED model to a new wavelength dispersion.
+
+    The resample can be performed to arbitrary dispersions based on the
+    'spectres <https://spectres.readthedocs.io/en/latest/>'_ package.
+
+    Attributes
+    ----------
+    parnames: List of parameter names.
+
+    Methods
+    -------
+    __call__(theta)
+        Performs the resampling using an array of parameters theta, in the
+        same order of parnames.
+    gradiet(theta)
+        Performs the calculation of the gradient at a point theta.
+    """
     def __init__(self, wave, obj):
+        """
+        Parameters
+        ----------
+        wave: ndarray, Quantity
+            New wavelength array of the SED model.
+        obj: SED model
+            SED model to be resampled.
+        """
         self.obj = obj
-        self.inwave= self.obj.wave
+        self._inwave= self.obj.wave
         self.wave = wave
         self.parnames = self.obj.parnames
-        self.nparams = len(self.parnames)
+        self._nparams = len(self.parnames)
 
     def __call__(self, theta):
+        """ Performs the resampling. """
         model = self.obj(theta)
-        rebin = spectres(self.wave, self.inwave, model)
+        rebin = spectres(self.wave, self._inwave, model)
         return rebin
 
-    def __add__(self, o):
-        return SEDSum(self, o)
-
-    def __mul__(self, o):
-        return SEDMul(self, o)
-
     def gradient(self, theta):
+        """ Calculation the the gradient of the resampled model. """
         grads = self.obj.gradient(theta)
-        grads = spectres(self.wave, self.inwave, grads)
+        grads = spectres(self.wave, self._inwave, grads)
         return grads
 
-class SEDSum():
-    def __init__(self, o1, o2):
-        msg = "Components with different wavelenghts cannot be added!"
+    def __add__(self, o):
+        """ Addition of this model with other SED models. """
+        return CompositeSED(self, o, "+")
+
+    def __mul__(self, o):
+        """ Multiplication of this model with other SED models. """
+        return CompositeSED(self, o, "*")
+    
+class CompositeSED():
+    """
+    Combination of SED models.
+
+    """
+    def __init__(self, o1, o2, op):
+        msg = "Components with different wavelenghts cannot be combined!"
         assert np.all(o1.wave == o2.wave), msg
+        self.__op = op
+        msg = "Operations allowed in combination of SED components are + and *."
+        assert self.__op in ["+", "*"], msg
         self.o1 = o1
         self.o2 = o2
         self.wave = self.o1.wave
         self.parnames = self.o1.parnames + self.o2.parnames
-        self.nparams = len(self.parnames)
-        self._grad_shape = (self.nparams, len(self.wave))
+        self._nparams = len(self.parnames)
+        self._grad_shape = (self._nparams, len(self.wave))
 
     def __call__(self, theta):
         theta1 = theta[:self.o1._nparams]
         theta2 = theta[self.o1._nparams:]
-        return self.o1(theta1) + self.o2(theta2)
-
-    def __add__(self, o):
-        return SEDSum(self, o)
-
-    def __mul__(self, o):
-        return SEDMul(self, o)
-
+        if self.__op == "+":
+            return self.o1(theta1) + self.o2(theta2)
+        elif self.__op == "*":
+            return self.o1(theta1) * self.o2(theta2)
+    
     def gradient(self, theta):
         n = self.o1._nparams
         theta1 = theta[:n]
         theta2 = theta[n:]
         grad = np.zeros(self._grad_shape)
-        grad[:n, :] = self.o1.gradient(theta1)
-        grad[n:, :] = self.o2.gradient(theta2)
+        if self.__op == "+":
+            grad[:n, :] = self.o1.gradient(theta1)
+            grad[n:, :] = self.o2.gradient(theta2)
+        elif self.__op == "*":
+            grad[:n, :] = self.o1.gradient(theta1) * self.o2(theta2)
+            grad[n:, :] = self.o2.gradient(theta2) * self.o1(theta1)
         return grad
-
-class SEDMul():
-    def __init__(self, o1, o2):
-        msg = "Components with different wavelenghts cannot be multiplied!"
-        assert np.all(o1.wave == o2.wave), msg
-        self.o1 = o1
-        self.o2 = o2
-        self.wave = self.o1.wave
-        self.parnames = self.o1.parnames + self.o2.parnames
-        self.nparams = len(self.parnames)
-        self._grad_shape = (self.nparams, len(self.wave))
-
-    def __call__(self, theta):
-        theta1 = theta[:self.o1._nparams]
-        theta2 = theta[self.o1._nparams:]
-        return self.o1(theta1) * self.o2(theta2)
 
     def __add__(self, o):
-        return SEDSum(self, o)
+        return CompositeSED(self, o, "+")
 
     def __mul__(self, o):
-        return SEDMul(self, o)
+        return CompositeSED(self, o, "*")
 
-    def gradient(self, theta):
-        n = self.o1._nparams
-        theta1 = theta[:n]
-        theta2 = theta[n:]
-        grad = np.zeros(self._grad_shape)
-        grad[:n, :] = self.o1.gradient(theta1) * self.o2(theta2)
-        grad[n:, :] = self.o2.gradient(theta2) * self.o1(theta1)
-        return grad
-
-class ConstrainModel():
+class Constrain():
     def __init__(self, sed):
         self.sed = sed
         self.parnames = list(dict.fromkeys(sed.parnames))
         self.wave = self.sed.wave
-        self.nparams = len(self.parnames)
+        self._nparams = len(self.parnames)
         self._shape = len(self.sed.parnames)
         self._idxs = {}
         for param in self.parnames:

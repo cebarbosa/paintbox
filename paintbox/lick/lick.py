@@ -84,7 +84,7 @@ class Lick():
                 Indices measured according to the conventional
                 units mixturing equivalent widths and magnitudes.
         """
-        self.R = np.zeros(self.bands.shape[0])
+        self.R = np.zeros(self.bands._shape[0])
         self.Ia = np.zeros_like(self.R)
         self.Im = np.zeros_like(self.R)
         for i, w in enumerate(self.bands):

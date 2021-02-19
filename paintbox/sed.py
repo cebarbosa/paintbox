@@ -14,7 +14,7 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from scipy.special import legendre
 
-from .operators import SEDMul, SEDSum
+from .operators import CompositeSED
 
 __all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
 
@@ -111,11 +111,11 @@ class ParametricModel():
 
     def __add__(self, o):
         """ Addition between two SED components. """
-        return SEDSum(self, o)
+        return CompositeSED(self, o, "+")
 
     def __mul__(self, o):
         """  Multiplication between two SED components. """
-        return SEDMul(self, o)
+        return CompositeSED(self, o, "*")
 
     def gradient(self, theta, eps=1e-6):
         """ Gradient of models at a given point theta.
@@ -207,11 +207,11 @@ class NonParametricModel():
 
     def __add__(self, o):
         """ Addition between two SED components. """
-        return SEDSum(self, o)
+        return CompositeSED(self, o, "+")
 
     def __mul__(self, o):
         """  Multiplication between two SED components. """
-        return SEDMul(self, o)
+        return CompositeSED(self, o, "*")
 
     def gradient(self, theta):
         """ Gradient of the dot product with weights theta.
@@ -256,8 +256,7 @@ class Polynomial():
         wave: ndarray, Quantity
             Wavelength array of the polynomials
         degree: int
-            Order of the Legendre polynomial.
-
+            Order of the Legendre polynomial.fg
         """
         self.wave = wave
         self.degree = degree
@@ -275,11 +274,11 @@ class Polynomial():
 
     def __add__(self, o):
         """ Addition between two SED components. """
-        return SEDSum(self, o)
+        return CompositeSED(self, o, "+")
 
     def __mul__(self, o):
-        """ Multiplicative between two SED components. """
-        return SEDMul(self, o)
+        """  Multiplication between two SED components. """
+        return CompositeSED(self, o, "*")
 
     def gradient(self, theta):
         """ Gradient of the polynomial with weights theta. """

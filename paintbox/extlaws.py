@@ -13,7 +13,7 @@ from __future__ import print_function, division
 import numpy as np
 import astropy.units as u
 
-from .operators import SEDSum, SEDMul
+from .operators import CompositeSED
 
 __all__ = ["CCM89", "C2000"]
 
@@ -74,10 +74,12 @@ class CCM89():
         return np.power(10, -0.4 * theta[0] * (self.a + self.b / theta[1]))
 
     def __add__(self, o):
-        return SEDSum(self, o)
+        """ Addition between two SED components. """
+        return CompositeSED(self, o, "+")
 
     def __mul__(self, o):
-        return SEDMul(self, o)
+        """  Multiplication between two SED components. """
+        return CompositeSED(self, o, "*")
 
     def gradient(self, theta):
         grad = np.zeros((2, len(self.wave)))
@@ -106,10 +108,12 @@ class C2000():
         return np.power(10, -0.4 * theta[0] * (1. + self.kappa / theta[1]))
 
     def __add__(self, o):
-        return SEDSum(self, o)
+        """ Addition between two SED components. """
+        return CompositeSED(self, o, "+")
 
     def __mul__(self, o):
-        return SEDMul(self, o)
+        """  Multiplication between two SED components. """
+        return CompositeSED(self, o, "*")
 
     def gradient(self, theta):
         grad = np.zeros((2, len(self.wave)))
