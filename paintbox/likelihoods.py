@@ -53,7 +53,7 @@ class NormalLogLike(LogLike):
 
     The normal log-likelihood is given by
 
-    ..math::
+    .. math::
 
     L(y,\\sigma_y|\\theta) & = & -\\frac{N}{2} \\ln (2 \\pi) - \\frac{1}{2}
 
