@@ -16,7 +16,29 @@ __all__ = ["StudTLogLike", "StudT2LogLike", "NormalLogLike", "Normal2LogLike",
            "JointLogLike"]
 
 class LogLike:
+    """ Base class for the loglikelihood classes.
+
+    Attributes
+    ----------
+
+    """
     def __init__(self, observed, model, obserr=None, mask=None):
+        """
+        Parameters
+        ----------
+        observed: numpy.ndarray
+            Observed SED of astronomical object.
+        model:
+            SED model used in the modelling.
+        obserr: numpy.ndarray, optional
+            Uncertainties in the observed SED fitting to be used in the
+            weighting of the log-likelihood.
+        mask: numpy.ndarray, optional
+            Boolean mask for the observed data. The mask uses the Python
+            convention, such that False indicate points to be masked,
+            and True indicate the points to be used.
+
+        """
         self.observed = observed
         self.model = model
         self.obserr = np.ones_like(self.observed) if obserr is None else obserr
@@ -24,9 +46,14 @@ class LogLike:
                     else mask
         self.N = len(self.observed)
         self.parnames = self.model.parnames
-        self.nparams = len(self.parnames)
+        self._nparams = len(self.parnames)
 
 class NormalLogLike(LogLike):
+    """ Normal loglikelihood for SED modeling.
+
+    :math:`a^2 + b^2 = c^2`
+
+    """
     def __init__(self, observed, model, obserr=None, mask=None):
         super().__init__(observed, model, obserr=obserr, mask=mask)
 
@@ -47,7 +74,7 @@ class Normal2LogLike(LogLike):
     def __init__(self, observed, model, obserr=None, mask=None):
         super().__init__(observed, model, obserr=obserr, mask=mask)
         self.parnames += ["eta"]
-        self.nparams += 1
+        self._nparams += 1
 
     def __call__(self, theta):
         model = self.model(theta[:-1])
@@ -76,7 +103,7 @@ class StudTLogLike(LogLike):
     def __init__(self, observed, model, obserr=None, mask=None):
         super().__init__(observed, model, obserr=obserr, mask=mask)
         self.parnames += ["nu"]
-        self.nparams += 1
+        self._nparams += 1
 
     def __call__(self, theta):
         nu = theta[-1]
@@ -114,7 +141,7 @@ class StudT2LogLike(LogLike):
     def __init__(self, observed, model, obserr=None, mask=None):
         super().__init__(observed, model, obserr=obserr, mask=mask)
         self.parnames += ["eta", "nu"]
-        self.nparams += 2
+        self._nparams += 2
 
     def __call__(self, theta):
         S, nu = theta[-2:]

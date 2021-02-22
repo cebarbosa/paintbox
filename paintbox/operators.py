@@ -32,6 +32,8 @@ class LOSVDConv():
     parnames: list
         Updated list of parameters, including the input SED object parameter
         names and the LOSVD parameters.
+    wave: numpy.ndarray, astropy.quantities.Quantity
+        Wavelength array.
 
     Methods
     -------
@@ -115,7 +117,10 @@ class Resample():
 
     Attributes
     ----------
-    parnames: List of parameter names.
+    parnames: list
+        List of parameter names.
+    wave: numpy.ndarray, astropy.quantities.Quantity
+        Wavelength array.
 
     Methods
     -------
@@ -164,8 +169,37 @@ class CompositeSED():
     """
     Combination of SED models.
 
+    The CompositeSED class allows the combination of any number of SED model
+    components using addition and / or multiplication, as long as the input
+    classes have the same wavelength dispersion.
+
+    Attributes
+    ----------
+    parnames: list
+        The new parnames list is a concatenation of the input SED models.
+    wave: numpy.ndarray, astropy.quantities.Quantity
+        Wavelength array.
+
+    Methods
+    -------
+    __call__(theta)
+        Returns the SED model with parameters theta, in the same order
+        determined by the parnames list.
+    gradiet(theta)
+        Performs the calculation of the gradient at a point theta.
+
+
     """
     def __init__(self, o1, o2, op):
+        """
+        Parameters
+        ----------
+        o1, o2: SED model components
+            Input SED models to be combined either by multiplication or
+            addition.
+        op: str
+            Operation of the combination, either "+" or "*".
+        """
         msg = "Components with different wavelenghts cannot be combined!"
         assert np.all(o1.wave == o2.wave), msg
         self.__op = op
@@ -179,6 +213,7 @@ class CompositeSED():
         self._grad_shape = (self._nparams, len(self.wave))
 
     def __call__(self, theta):
+        """ SED model for combined components at point theta. """
         theta1 = theta[:self.o1._nparams]
         theta2 = theta[self.o1._nparams:]
         if self.__op == "+":
@@ -187,6 +222,7 @@ class CompositeSED():
             return self.o1(theta1) * self.o2(theta2)
     
     def gradient(self, theta):
+        """ Gradient of the combined SED model at point theta. """
         n = self.o1._nparams
         theta1 = theta[:n]
         theta2 = theta[n:]
@@ -200,13 +236,40 @@ class CompositeSED():
         return grad
 
     def __add__(self, o):
+        """ Addition of SED components. """
         return CompositeSED(self, o, "+")
 
     def __mul__(self, o):
+        """ Multiplication of SED components. """
         return CompositeSED(self, o, "*")
 
 class Constrain():
+    """ Constrain parameters of an SED model.
+
+    The combination of SED models may result in models with repeated
+    parameters at different locations of the parnames list. This class allows
+    the simplification of the input model by finding and constraining all
+    instances of repeated parameters to the same value.
+
+    Attributes
+    ----------
+    parnames: list
+        The new parnames list is a concatenation of the input SED models,
+        simplified in relation to the input model.
+    wave: numpy.ndarray, astropy.quantities.Quantity
+        Wavelength array.
+
+    Methods
+    -------
+    __call__(theta)
+        Returns the SED model according the parameters given in theta.
+
+    """
     def __init__(self, sed):
+        """
+
+
+        """
         self.sed = sed
         self.parnames = list(dict.fromkeys(sed.parnames))
         self.wave = self.sed.wave
@@ -214,10 +277,15 @@ class Constrain():
         self._shape = len(self.sed.parnames)
         self._idxs = {}
         for param in self.parnames:
-            self._idxs[param] = np.where(np.array(self.sed.parnames) == param)[0]
+            self._idxs[param] = np.where( \
+                                np.array(self.sed.parnames) == param)[0]
 
     def __call__(self, theta):
+        """ Calculates the constrained model. """
         t = np.zeros(self._shape)
         for param, val in zip(self.parnames, theta):
             t[self._idxs[param]] = val
         return self.sed(t)
+
+    def gradient(self, theta):
+        raise NotImplementedError
