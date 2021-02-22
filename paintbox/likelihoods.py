@@ -44,14 +44,18 @@ class LogLike:
         self.obserr = np.ones_like(self.observed) if obserr is None else obserr
         self.mask = np.full(len(self.observed), True) if mask is None \
                     else mask
-        self.N = len(self.observed)
+        self._N = len(self.observed)
         self.parnames = self.model.parnames
         self._nparams = len(self.parnames)
 
 class NormalLogLike(LogLike):
     """ Normal loglikelihood for SED modeling.
 
-    :math:`a^2 + b^2 = c^2`
+    The normal log-likelihood is given by
+
+    ..math::
+
+    L(y,\sigma_y|theta) = -\frac{N}{2}
 
     """
     def __init__(self, observed, model, obserr=None, mask=None):
@@ -59,7 +63,7 @@ class NormalLogLike(LogLike):
 
     def __call__(self, theta):
         e_i = (self.model(theta) - self.observed)[self.mask]
-        LLF = - 0.5 * self.N * np.log(2 * np.pi) + \
+        LLF = - 0.5 * self._N * np.log(2 * np.pi) + \
               - 0.5 * np.sum(np.power(e_i / self.obserr[self.mask], 2)) \
               - 0.5 * np.sum(np.log(self.obserr[self.mask] ** 2))
         return float(LLF)
@@ -82,7 +86,7 @@ class Normal2LogLike(LogLike):
             return -np.infty
         e_i = model - self.observed
         S = theta[-1]
-        LLF = - 0.5 * self.N * np.log(2 * np.pi) + \
+        LLF = - 0.5 * self._N * np.log(2 * np.pi) + \
               - 0.5 * np.sum(np.power(e_i / (S * self.obserr), 2)) \
               - 0.5 * np.sum(np.log((S * self.obserr) ** 2))
         return float(LLF)
@@ -95,7 +99,7 @@ class Normal2LogLike(LogLike):
         C = -np.sum(A[np.newaxis,:] * B, axis=1)
         grad = np.zeros(len(theta))
         grad[:-1] = C
-        grad[-1] = - self.N / S + \
+        grad[-1] = - self._N / S + \
                    np.power(S, -3) * np.sum(np.power(e_i / self.obserr, 2))
         return grad
 
@@ -109,10 +113,10 @@ class StudTLogLike(LogLike):
         nu = theta[-1]
         e_i = self.model(theta[:-1])[self.mask] - self.observed[self.mask]
         x = 1. + np.power(e_i / self.obserr[self.mask], 2.) / (nu - 2)
-        LLF = self.N * np.log(gamma(0.5 * (nu + 1)) /
-                         np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu))  \
-             - 0.5 * (nu + 1) * np.sum(np.log(x)) \
-             - 0.5 * np.sum(np.log(self.obserr ** 2)) # Constant
+        LLF = self._N * np.log(gamma(0.5 * (nu + 1)) /
+                               np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu)) \
+              - 0.5 * (nu + 1) * np.sum(np.log(x)) \
+              - 0.5 * np.sum(np.log(self.obserr ** 2)) # Constant
         return float(LLF)
 
     def gradient(self, theta):
@@ -128,9 +132,9 @@ class StudTLogLike(LogLike):
         grad[:-1] = -0.5 * (nu + 1) * np.sum(term12[np.newaxis, :] *
                                              sspgrad, axis=1)
         # d loglike / d nu
-        nuterm1 = 0.5 * self.N * digamma(0.5 * (nu + 1))
-        nuterm2 = - 0.5 * self.N / (nu - 2)
-        nuterm3 = -0.5 * self.N * digamma(0.5 * nu)
+        nuterm1 = 0.5 * self._N * digamma(0.5 * (nu + 1))
+        nuterm2 = - 0.5 * self._N / (nu - 2)
+        nuterm3 = -0.5 * self._N * digamma(0.5 * nu)
         nuterm4 = -0.5 * np.sum(np.log(1 + x))
         nuterm5 = 0.5 * (nu + 1) * np.power(nu - 2, -2) * \
                   np.sum(np.power(e_i / self.obserr, 2) * term1)
@@ -147,10 +151,10 @@ class StudT2LogLike(LogLike):
         S, nu = theta[-2:]
         e_i = self.model(theta[:-2])[self.mask] - self.observed[self.mask]
         x = 1. + np.power(e_i / S / self.obserr[self.mask], 2.) / (nu - 2)
-        LLF = self.N * np.log(gamma(0.5 * (nu + 1)) /
-                         np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu))  \
-             - 0.5 * (nu + 1) * np.sum(np.log(x)) \
-             - 0.5 * np.sum(np.log((S * self.obserr[self.mask]) ** 2))
+        LLF = self._N * np.log(gamma(0.5 * (nu + 1)) /
+                               np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu)) \
+              - 0.5 * (nu + 1) * np.sum(np.log(x)) \
+              - 0.5 * np.sum(np.log((S * self.obserr[self.mask]) ** 2))
         return float(LLF)
 
     def gradient(self, theta):
