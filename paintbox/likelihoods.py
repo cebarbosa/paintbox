@@ -49,13 +49,13 @@ class LogLike:
         self._nparams = len(self.parnames)
 
 class NormalLogLike(LogLike):
-    """ Normal loglikelihood for SED modeling.
+    r""" Normal loglikelihood for SED modeling.
 
     The normal log-likelihood is given by
 
     .. math::
 
-    L(y,\\sigma_y|\\theta) & = & -\\frac{N}{2} \\ln (2 \\pi) - \\frac{1}{2}
+    L(y,\sigma_y|\theta) & = & -\frac{N}{2} \ln (2 \pi) - \frac{1}{2}
 
     """
     def __init__(self, observed, model, obserr=None, mask=None):
