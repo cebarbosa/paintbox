@@ -144,7 +144,7 @@ class Normal2LogLike(LogLike):
         return grad
 
 class StudTLogLike(LogLike):
-    """
+    r"""
     Student's t-distribution log-likelihood.
 
     The Student's t-distribution log-likelihood allows for robust inference of
