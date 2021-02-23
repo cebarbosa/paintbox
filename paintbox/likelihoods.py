@@ -149,7 +149,7 @@ class StudTLogLike(LogLike):
     The Student's t-distribution log-likelihood allows for robust inference of
     parameters in models containing outliers. The log-likelihood is given by
 
-    ..math::
+    .. math::
         :nowrap:
 
         \begin{equation}
@@ -161,7 +161,7 @@ class StudTLogLike(LogLike):
             y_i - f(\theta)\right )^2}{\sigma_{i}^2 (\nu-2)} \right ]
         \end{equation}
 
-    where 
+    where
     """
     __doc__ = __doc__ + LogLike.__doc__
 
