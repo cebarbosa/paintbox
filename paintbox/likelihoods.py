@@ -57,16 +57,33 @@ class NormalLogLike(LogLike):
        :nowrap:
 
        \begin{equation}
-          \ln \mathcal{L}(\vec{y}, \vec{\sigma}|\theta)= -\frac{N}{2}\ln (2\pi)
-          -\frac{1}{2}\sum_{n=1}^N \left (\frac{f(\theta)- y}{\sigma_y}
-          \right )^2 - \frac{1}{2}\sum_{n=1}^{N}\ln \sigma_i^2
+          \ln \mathcal{L}(y, \sigma|\theta)= -\frac{N}{2}\ln (2\pi)
+          -\frac{1}{2}\sum_{i=1}^N \left (\frac{f(\theta)- y_i}{\sigma_i}
+          \right )^2 - \frac{1}{2}\sum_{i=1}^{N}\ln \sigma_i^2
        \end{equation}
+
+    where :math: `y` is the observed spectrum, :math: `\sigma` are the
+    uncertainties, :math: `\theta` are the input vector of parameters and
+    and :math: `f(\theta)` is the SED model.
 
     """
     def __init__(self, observed, model, obserr=None, mask=None):
+        """
+        Parameters
+        ----------
+        observed: numpy.array
+            Observed spectro-photometric data.
+        model: paintbox SED model
+            The model used in the fitting.
+        obserr: numpy.array, optional
+            The uncertainties in the observed data.
+        mask: numpy.array, boolean, optional
+            Mask regions in the observations / models.
+        """
         super().__init__(observed, model, obserr=obserr, mask=mask)
 
     def __call__(self, x):
+        """ Calculation of the log-likelihood. """
         e_i = (self.model(x) - self.observed)[self.mask]
         yerr = self.obserr[self.mask]
         LLF = - 0.5 * self._N * np.log(2 * np.pi) + \
@@ -75,6 +92,7 @@ class NormalLogLike(LogLike):
         return float(LLF)
 
     def gradient(self, theta):
+        """ Gradient of the log-likelihood. """
         e_i = (self.model(theta) - self.observed)[self.mask]
         yerr = self.obserr[self.mask]
         g = self.model.gradient(theta)[:, self.mask]
