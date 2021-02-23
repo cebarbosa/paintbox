@@ -16,8 +16,7 @@ __all__ = ["StudTLogLike", "StudT2LogLike", "NormalLogLike", "Normal2LogLike",
            "JointLogLike"]
 
 class LogLike:
-    """ Base class for the loglikelihood classes.
-
+    """
     Parameters
     ----------
     observed: numpy.ndarray
@@ -79,18 +78,6 @@ class NormalLogLike(LogLike):
     __doc__ = __doc__ + LogLike.__doc__
 
     def __init__(self, observed, model, obserr=None, mask=None):
-        """
-        Parameters
-        ----------
-        observed: numpy.array
-            Observed spectro-photometric data.
-        model: paintbox SED model
-            The model used in the fitting.
-        obserr: numpy.array, optional
-            The uncertainties in the observed data.
-        mask: numpy.array, boolean, optional
-            Mask regions in the observations / models.
-        """
         super().__init__(observed, model, obserr=obserr, mask=mask)
 
     def __call__(self, theta):
@@ -112,31 +99,33 @@ class NormalLogLike(LogLike):
         return grad
 
 class Normal2LogLike(LogLike):
+    r""" Variation of the normal log-likelihood with scaled errors.
+
+    Uncertainties in the input spectrum may be under/ over estimated in some
+    occassions, leading to under/over-estimated uncertainties in parameter
+    estimation. This log-likelihood includes an extra parameter to
+    scale the observed uncertainties by a multiplicative factor to increase
+    the likelihood of the modeling. In this case, the log-likelihood is
+    given by
+
+    .. math::
+        :nowrap:
+
+    \begin{equation}
+      \ln \mathcal{L}(y, \sigma|\theta, \eta)= -\frac{N}{2}\ln (2\pi)
+      -\frac{1}{2}\sum_{i=1}^N \left (\frac{f(\theta)- y_i}{\eta \sigma_i}
+      \right )^2 - \frac{1}{2}\sum_{i=1}^{N}\ln \eta^2\sigma_i^2
+   \end{equation}
+
+    where :math:`y` is the observed spectrum, :math:`\sigma` are the
+    uncertainties, :math:`\theta` is the input vector of parameters and
+    and :math:`f(\theta)` is the SED model.
+
+
+    """
+    __doc__ = __doc__ + LogLike.__doc__
+
     def __init__(self, observed, model, obserr=None, mask=None):
-        """ Variation of the normal log-likelihood with scaled errors.
-
-        Uncertainties in the input spectrum may be under/ over estimated in some
-        occassions, leading to under/over-estimated uncertainties in parameter
-        estimation. This log-likelihood includes an extra parameter to
-        scale the observed uncertainties by a multiplicative factor to increase
-        the likelihood of the modeling. In this case, the log-likelihood is
-        given by
-
-        .. math::
-            :nowrap:
-
-        \begin{equation}
-          \ln \mathcal{L}(y, \sigma|\theta, \eta)= -\frac{N}{2}\ln (2\pi)
-          -\frac{1}{2}\sum_{i=1}^N \left (\frac{f(\theta)- y_i}{\eta \sigma_i}
-          \right )^2 - \frac{1}{2}\sum_{i=1}^{N}\ln \eta^2\sigma_i^2
-       \end{equation}
-
-        where :math:`y` is the observed spectrum, :math:`\sigma` are the
-        uncertainties, :math:`\theta` is the input vector of parameters and
-        and :math:`f(\theta)` is the SED model.
-
-
-        """
         super().__init__(observed, model, obserr=obserr, mask=mask)
         self.parnames += ["eta"]
         self._nparams += 1
