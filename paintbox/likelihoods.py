@@ -54,8 +54,12 @@ class NormalLogLike(LogLike):
     The normal log-likelihood is given by
 
     .. math::
+       :nowrap:
 
-    L(y,\\sigma_y|\\theta) & = & -\frac{N}{2} \\ln (2 \\pi) - \\frac{1}{2}
+       \begin{eqnarray}
+          y    & = & ax^2 + bx + c \\
+          f(x) & = & x^2 + 2xy + y^2
+       \end{eqnarray}
 
     """
     def __init__(self, observed, model, obserr=None, mask=None):
