@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
-""" 
+"""
 
-Created on 27/11/19
-
-Author : Carlos Eduardo Barbosa
-
-Basic classes to build the SED/spectra of galaxies
+Basic SED classes for handling stellar population and emission lines
+based on precomputed templates and polynomials.
 
 """
 from __future__ import print_function, division
@@ -33,14 +30,6 @@ class ParametricModel():
     ----------
     parnames: list
         Name of the variables of the SED model.
-
-    Methods
-    -------
-    __call__(theta)
-        Computation of interpolated model at a point theta, with parameters
-        in the order provided by the parnames list.
-    gradient(theta)
-        Gradient of the interpolated model at a given point.
 
     """
     def __init__(self, wave, params, data):
@@ -163,13 +152,6 @@ class NonParametricModel():
     parnames: list
         Name of the templates.
 
-    Methods
-    -------
-    __call__(theta)
-        Dot product of templates with a vector of weights theta.
-    gradient(theta)
-        The gradient of the dot product with weights theta.
-
     """
     def __init__(self, wave, templates, names=None):
         """ 
@@ -201,7 +183,7 @@ class NonParametricModel():
             Vector with weights of the templates.
 
         Returns
-        Dot product of theta with templates.
+            Dot product of theta with templates.
         """
         return np.dot(theta, self.templates)
 
@@ -218,7 +200,8 @@ class NonParametricModel():
 
         This routine returns simply the templates, but it has an argument
         theta only to keep calls consistently across different SED
-        components. """
+        components.
+        """
         return self.templates
 
 class Polynomial():
@@ -240,13 +223,6 @@ class Polynomial():
         List with the name of the individual polynomials, set to
         [p0, p1, ..., pdegree] at initialization.
 
-    Methods
-    -------
-    __call__(theta)
-        Calculation of the polynomial with weights theta.
-
-    gradient(theta)
-        Determination of gradient of polynomial with weights theta.
     """
 
     def __init__(self, wave, degree):

@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
 """ 
-
-Created on 27/11/19
-
-Author : Carlos Eduardo Barbosa
-
-Classes containing extinction laws.
+Extinction laws used for dust attenuation.
 
 """
 from __future__ import print_function, division
