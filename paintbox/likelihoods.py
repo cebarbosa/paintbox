@@ -144,8 +144,7 @@ class Normal2LogLike(LogLike):
         return grad
 
 class StudTLogLike(LogLike):
-    r"""
-    Student's t-distribution log-likelihood.
+    r"""Student's t-distribution log-likelihood.
 
     The Student's t-distribution log-likelihood allows for robust inference of
     parameters in models containing outliers. The log-likelihood is given by
@@ -154,13 +153,15 @@ class StudTLogLike(LogLike):
         :nowrap:
 
         \begin{equation}
-        \ln p(y, \sigma | \theta ) =
-         N\log \left [ \frac{\Gamma\left (\frac{\nu + 1}{2}\right )}{\sqrt{
-         \pi (\nu-2)}\Gamma\left (\frac{\nu}{2} \right )}\right ]
-        - \frac{1}{2}\sum_{i=1}^{N}\log \sigma_{i}^2
-        -\frac{\nu+1}{2}\sum_{i=1}^N \log \left [ 1 + \frac{\left (
-        y_i - f(\theta)\right )^2}{\sigma_{i}^2 (\nu-2)} \right ]
+            \ln p(y, \sigma | \theta ) =
+            N\log \left [ \frac{\Gamma\left (\frac{\nu + 1}{2}\right )}{\sqrt{
+            \pi (\nu-2)}\Gamma\left (\frac{\nu}{2} \right )}\right ]
+            -\frac{1}{2}\sum_{i=1}^{N}\log \sigma_{i}^2
+            -\frac{\nu+1}{2}\sum_{i=1}^N \log \left [ 1 + \frac{\left (
+            y_i - f(\theta)\right )^2}{\sigma_{i}^2 (\nu-2)} \right ]
         \end{equation}
+
+    where 
     """
     __doc__ = __doc__ + LogLike.__doc__
 
