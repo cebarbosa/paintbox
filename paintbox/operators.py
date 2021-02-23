@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-
-Created on 27/11/19
-
-Author : Carlos Eduardo Barbosa
-
-Basic classes to build the SED/spectra of galaxies
-
+Miscelaneous classes for combination and modification of other paintbox model
+classes.
 """
 from __future__ import print_function, division
 
