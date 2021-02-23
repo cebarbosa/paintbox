@@ -44,7 +44,7 @@ class LogLike:
         self.obserr = np.ones_like(self.observed) if obserr is None else obserr
         self.mask = np.full(len(self.observed), True) if mask is None \
                     else mask
-        self._N = len(self.observed)
+        self._N = len(self.mask)
         self.parnames = self.model.parnames
         self._nparams = len(self.parnames)
 
@@ -56,26 +56,30 @@ class NormalLogLike(LogLike):
     .. math::
        :nowrap:
 
-       \begin{eqnarray}
-          \mathcal{L)(D|\theta)    & = & -\frac{N}{2}\ln (2\pi) \\
-           & - & \frac{1}{2}\sum \left (f(theta)- y \right )^2
-       \end{eqnarray}
+       \begin{equation}
+          \ln \mathcal{L}(\vec{y}, \vec{\sigma}|\theta)= -\frac{N}{2}\ln (2\pi)
+          -\frac{1}{2}\sum_{n=1}^N \left (\frac{f(\theta)- y}{\sigma_y}
+          \right )^2 - \frac{1}{2}\sum_{n=1}^{N}\ln \sigma_i^2
+       \end{equation}
 
     """
     def __init__(self, observed, model, obserr=None, mask=None):
         super().__init__(observed, model, obserr=obserr, mask=mask)
 
-    def __call__(self, theta):
-        e_i = (self.model(theta) - self.observed)[self.mask]
+    def __call__(self, x):
+        e_i = (self.model(x) - self.observed)[self.mask]
+        yerr = self.obserr[self.mask]
         LLF = - 0.5 * self._N * np.log(2 * np.pi) + \
-              - 0.5 * np.sum(np.power(e_i / self.obserr[self.mask], 2)) \
-              - 0.5 * np.sum(np.log(self.obserr[self.mask] ** 2))
+              - 0.5 * np.sum(np.power(e_i / yerr, 2)) \
+              - 0.5 * np.sum(np.log(yerr ** 2))
         return float(LLF)
 
     def gradient(self, theta):
-        e_i = self.model(theta) - self.observed
-        grad = - np.sum(e_i / np.power(self.obserr, 2.)[np.newaxis, :] *
-                        self.model.gradient(theta), axis=1)
+        e_i = (self.model(theta) - self.observed)[self.mask]
+        yerr = self.obserr[self.mask]
+        g = self.model.gradient(theta)[:, self.mask]
+        grad = - np.sum((e_i / np.power(yerr, 2.))[np.newaxis, :] * g,
+                        axis=1)
         return grad
 
 class Normal2LogLike(LogLike):
@@ -88,19 +92,19 @@ class Normal2LogLike(LogLike):
         model = self.model(theta[:-1])
         if np.all(model) == 0:
             return -np.infty
-        e_i = model - self.observed
+        e_i = (model - self.observed)[self.mask]
         S = theta[-1]
         LLF = - 0.5 * self._N * np.log(2 * np.pi) + \
-              - 0.5 * np.sum(np.power(e_i / (S * self.obserr), 2)) \
-              - 0.5 * np.sum(np.log((S * self.obserr) ** 2))
+              - 0.5 * np.sum(np.power(e_i / (S * self.obserr[self.mask]), 2)) \
+              - 0.5 * np.sum(np.log((S * self.obserr[self.mask]) ** 2))
         return float(LLF)
 
     def gradient(self, theta):
-        e_i = self.model(theta[:-1]) - self.observed
+        e_i = (self.model(theta[:-1]) - self.observed)[self.mask]
         S = theta[-1]
-        A = e_i / np.power(S * self.obserr, 2.)
-        B = self.model.gradient(theta[:-1])
-        C = -np.sum(A[np.newaxis,:] * B, axis=1)
+        A = (e_i / np.power(S * self.obserr, 2.))[self.mask]
+        B = self.model.gradient(theta[:-1])[self.mask]
+        C = -np.sum(A[np.newaxis,:] * B, axis=1)[self.mask]
         grad = np.zeros(len(theta))
         grad[:-1] = C
         grad[-1] = - self._N / S + \
