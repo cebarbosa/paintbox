@@ -161,7 +161,11 @@ class StudTLogLike(LogLike):
             y_i - f(\theta)\right )^2}{\sigma_{i}^2 (\nu-2)} \right ]
         \end{equation}
 
-    where
+    where :math:`y` is the observed spectrum, :math:`\sigma` are the
+    uncertainties, :math:`\theta` is the input vector of parameters,
+    :math:`f(\theta)` is the SED model, and :math:`\nu` is the
+    degree-of-freedom parameter that controls the wings of the distribution,
+    which is appended to the input parnames list. 
     """
     __doc__ = __doc__ + LogLike.__doc__
 
