@@ -62,9 +62,9 @@ class NormalLogLike(LogLike):
           \right )^2 - \frac{1}{2}\sum_{i=1}^{N}\ln \sigma_i^2
        \end{equation}
 
-    where :math: `y` is the observed spectrum, :math: `\sigma` are the
-    uncertainties, :math: `\theta` are the input vector of parameters and
-    and :math: `f(\theta)` is the SED model.
+    where :math:`y` is the observed spectrum, :math:`\sigma` are the
+    uncertainties, :math:`\theta` are the input vector of parameters and
+    and :math:`f(\theta)` is the SED model.
 
     """
     def __init__(self, observed, model, obserr=None, mask=None):
