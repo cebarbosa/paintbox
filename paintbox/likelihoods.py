@@ -57,8 +57,8 @@ class NormalLogLike(LogLike):
        :nowrap:
 
        \begin{eqnarray}
-          y    & = & ax^2 + bx + c \\
-          f(x) & = & x^2 + 2xy + y^2
+          \mathcal{L)(D|\theta)    & = & -\frac{N}{2}\ln (2\pi) \\
+           & - & \frac{1}{2}\sum \left (f(theta)- y \right )^2
        \end{eqnarray}
 
     """
