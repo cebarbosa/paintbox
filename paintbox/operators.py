@@ -34,14 +34,6 @@ class LOSVDConv():
         names and the LOSVD parameters.
     wave: numpy.ndarray, astropy.quantities.Quantity
         Wavelength array.
-
-    Methods
-    -------
-    __call__(theta)
-        Performs the convolution of the SED model with the LOSVD using the
-        parameter vector theta, with variables in the same order as parnames.
-    gradient(theta)
-        Calculates the gradient of the convolved SED model at the point theta.
     """
     def __init__(self, obj, losvdpars=None, vunit="km/s"):
         """
@@ -121,14 +113,6 @@ class Resample():
         List of parameter names.
     wave: numpy.ndarray, astropy.quantities.Quantity
         Wavelength array.
-
-    Methods
-    -------
-    __call__(theta)
-        Performs the resampling using an array of parameters theta, in the
-        same order of parnames.
-    gradiet(theta)
-        Performs the calculation of the gradient at a point theta.
     """
     def __init__(self, wave, obj):
         """
@@ -179,16 +163,6 @@ class CompositeSED():
         The new parnames list is a concatenation of the input SED models.
     wave: numpy.ndarray, astropy.quantities.Quantity
         Wavelength array.
-
-    Methods
-    -------
-    __call__(theta)
-        Returns the SED model with parameters theta, in the same order
-        determined by the parnames list.
-    gradiet(theta)
-        Performs the calculation of the gradient at a point theta.
-
-
     """
     def __init__(self, o1, o2, op):
         """

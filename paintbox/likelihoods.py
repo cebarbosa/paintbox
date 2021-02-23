@@ -165,7 +165,7 @@ class StudTLogLike(LogLike):
     uncertainties, :math:`\theta` is the input vector of parameters,
     :math:`f(\theta)` is the SED model, and :math:`\nu` is the
     degree-of-freedom parameter that controls the wings of the distribution,
-    which is appended to the input parnames list. 
+    which is appended to the input parnames list.
     """
     __doc__ = __doc__ + LogLike.__doc__
 
