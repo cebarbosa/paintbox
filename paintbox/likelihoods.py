@@ -18,6 +18,20 @@ __all__ = ["StudTLogLike", "StudT2LogLike", "NormalLogLike", "Normal2LogLike",
 class LogLike:
     """ Base class for the loglikelihood classes.
 
+    Parameters
+    ----------
+    observed: numpy.ndarray
+        Observed SED of astronomical object.
+    model:
+        SED model used in the modelling.
+    obserr: numpy.ndarray, optional
+        Uncertainties in the observed SED fitting to be used in the
+        weighting of the log-likelihood.
+    mask: numpy.ndarray, optional
+        Boolean mask for the observed data. The mask uses the Python
+        convention, such that False indicate points to be masked,
+        and True indicate the points to be used.
+
     Attributes
     ----------
     parnames: list
@@ -31,27 +45,9 @@ class LogLike:
         is given in the parnames list.
     gradient(theta)
         Gradient of the log-likelihood at a given point theta.
-
-
     """
 
     def __init__(self, observed, model, obserr=None, mask=None):
-        """
-        Parameters
-        ----------
-        observed: numpy.ndarray
-            Observed SED of astronomical object.
-        model:
-            SED model used in the modelling.
-        obserr: numpy.ndarray, optional
-            Uncertainties in the observed SED fitting to be used in the
-            weighting of the log-likelihood.
-        mask: numpy.ndarray, optional
-            Boolean mask for the observed data. The mask uses the Python
-            convention, such that False indicate points to be masked,
-            and True indicate the points to be used.
-
-        """
         self.observed = observed
         self.model = model
         self.obserr = np.ones_like(self.observed) if obserr is None else obserr
@@ -80,7 +76,7 @@ class NormalLogLike(LogLike):
     and :math:`f(\theta)` is the SED model.
 
     """
-    __doc__ = LogLike.__doc__ + __doc__
+    __doc__ = __doc__ + LogLike.__doc__
 
     def __init__(self, observed, model, obserr=None, mask=None):
         """
