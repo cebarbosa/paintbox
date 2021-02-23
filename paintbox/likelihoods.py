@@ -211,7 +211,8 @@ class StudT2LogLike(LogLike):
 
     Similar to the Normal2LogLike, this class extends the log-likelihood of
     the Student's t-distribution to include a term to scale the
-    uncertainties to increase the likelihood. In this case,
+    uncertainties to increase the likelihood as a way to compensate for
+    under-over estimation of the observed uncertainties. In this case,
     the log-likelihood is given by
 
     .. math::
