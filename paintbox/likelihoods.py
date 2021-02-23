@@ -153,7 +153,7 @@ class StudTLogLike(LogLike):
         :nowrap:
 
         \begin{equation}
-            \ln p(y, \sigma | \theta ) =
+            \ln p(y, \sigma | \theta, \nu ) =
             N\log \left [ \frac{\Gamma\left (\frac{\nu + 1}{2}\right )}{\sqrt{
             \pi (\nu-2)}\Gamma\left (\frac{\nu}{2} \right )}\right ]
             -\frac{1}{2}\sum_{i=1}^{N}\log \sigma_{i}^2
@@ -207,6 +207,34 @@ class StudTLogLike(LogLike):
         return grad
 
 class StudT2LogLike(LogLike):
+    r"""Student's t-distribution log-likelihood with scaled uncertainties.
+
+    Similar to the Normal2LogLike, this class extends the log-likelihood of
+    the Student's t-distribution to include a term to scale the
+    uncertainties to increase the likelihood. In this case,
+    the log-likelihood is given by
+
+    .. math::
+        :nowrap:
+
+        \begin{equation}
+            \ln p(y, \sigma | \theta, \eta, \nu ) =
+            N\log \left [ \frac{\Gamma\left (\frac{\nu + 1}{2}\right )}{\sqrt{
+            \pi (\nu-2)}\Gamma\left (\frac{\nu}{2} \right )}\right ]
+            -\frac{1}{2}\sum_{i=1}^{N}\log \eta^2\sigma_{i}^2
+            -\frac{\nu+1}{2}\sum_{i=1}^N \log \left [ 1 + \frac{\left (
+            y_i - f(\theta)\right )^2}{\eta^2\sigma_{i}^2 (\nu-2)} \right ]
+        \end{equation}
+
+    where :math:`y` is the observed spectrum, :math:`\sigma` are the
+    uncertainties, :math:`\theta` is the input vector of parameters,
+    :math:`f(\theta)` is the SED model, :math:`\eta` is the parameter used
+    to modify the scale of the uncertainties, and :math:`\nu` is the
+    degree-of-freedom parameter that controls the wings of the distribution.
+    Both :math:`\eta` and :math:`\nu` are appended to to input parameter list.
+    """
+    __doc__ = __doc__ + LogLike.__doc__
+
     def __init__(self, observed, model, obserr=None, mask=None):
         super().__init__(observed, model, obserr=obserr, mask=mask)
         self.parnames += ["eta", "nu"]
