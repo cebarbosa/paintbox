@@ -36,14 +36,6 @@ class LogLike:
     parnames: list
         List with name of variables used in the evaluation of the
         log-likelihood.
-
-    Methods
-    -------
-    __call__(theta)
-        Calculation of the log-likelihood at a given point theta, whose order
-        is given in the parnames list.
-    gradient(theta)
-        Gradient of the log-likelihood at a given point theta.
     """
 
     def __init__(self, observed, model, obserr=None, mask=None):
