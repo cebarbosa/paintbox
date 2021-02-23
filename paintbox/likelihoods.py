@@ -20,8 +20,8 @@ class LogLike:
     Parameters
     ----------
     observed: numpy.ndarray
-        Observed SED of astronomical object.
-    model:
+        Observed spectro-photometric SED of object.
+    model: paintbox SED model
         SED model used in the modelling.
     obserr: numpy.ndarray, optional
         Uncertainties in the observed SED fitting to be used in the
@@ -103,15 +103,16 @@ class Normal2LogLike(LogLike):
     .. math::
         :nowrap:
 
-    \begin{equation}
-      \ln \mathcal{L}(y, \sigma|\theta, \eta)= -\frac{N}{2}\ln (2\pi)
-      -\frac{1}{2}\sum_{i=1}^N \left (\frac{f(\theta)- y_i}{\eta \sigma_i}
-      \right )^2 - \frac{1}{2}\sum_{i=1}^{N}\ln \eta^2\sigma_i^2
-   \end{equation}
+        \begin{equation}
+          \ln \mathcal{L}(y, \sigma|\theta, \eta)= -\frac{N}{2}\ln (2\pi)
+          -\frac{1}{2}\sum_{i=1}^N \left (\frac{f(\theta)- y_i}{\eta \sigma_i}
+          \right )^2 - \frac{1}{2}\sum_{i=1}^{N}\ln \eta^2\sigma_i^2
+       \end{equation}
 
     where :math:`y` is the observed spectrum, :math:`\sigma` are the
     uncertainties, :math:`\theta` is the input vector of parameters and
-    and :math:`f(\theta)` is the SED model.
+    and :math:`f(\theta)` is the SED model. The multiplicative factor
+    :math:`\eta` is appended to the parnames list.
 
 
     """
@@ -146,6 +147,11 @@ class Normal2LogLike(LogLike):
         return grad
 
 class StudTLogLike(LogLike):
+    """
+    
+    """
+    __doc__ = __doc__ + LogLike.__doc__
+
     def __init__(self, observed, model, obserr=None, mask=None):
         super().__init__(observed, model, obserr=obserr, mask=mask)
         self.parnames += ["nu"]
