@@ -98,7 +98,13 @@ class CCM89():
                                                    np.where(uv, _buv(x), 0)))
 
     def __call__(self, theta):
-        """ Returns the dust screen model attenuation. """
+        """ Returns the dust screen model attenuation.
+
+        Parameters
+        ----------
+        theta: numpy.ndarray
+            Array with values of Av and Rv.
+        """
         return np.power(10, -0.4 * theta[0] * (self._a + self._b / theta[1]))
 
     def __add__(self, o):
@@ -110,7 +116,13 @@ class CCM89():
         return CompositeSED(self, o, "*")
 
     def gradient(self, theta):
-        """ Gradient of the extinction law. """
+        """ Gradient of the extinction law.
+
+        Parameters
+        ----------
+        theta: numpy.ndarray
+            Array with values of Av and Rv.
+        """
         grad = np.zeros((2, len(self.wave)))
         A = self.__call__(theta)
         grad[0] = -0.4 * np.log(10) * (self._a + self._b / theta[1]) * A
@@ -121,8 +133,16 @@ class CCM89():
 class C2000():
     """ Calzetti et al. (2000) extinction law.
 
+    The extinction laws are calculated using a dust screen model, returning
+    the ratio
 
+    .. math::
+        :nowrap:
 
+        \begin{equation}
+        \frac{f_\lambda}{f_\lambda^0}= 10^{-0.4 A_V \left (1 +
+                                       \kappa_\lambda / R_V\right )}
+        \end{equation}
     """
     def __init__(self, wave, unit=None):
         """
@@ -147,9 +167,13 @@ class C2000():
                                        + 0.011 * (x * x * x)))
 
     def __call__(self, theta):
-        """  Calculates the extinction assuming a Calzetti (2000) extinction.
+        """ Returns the dust screen model attenuation.
+
         Parameters
-        ----------"""
+        ----------
+        theta: numpy.ndarray
+            Array with values of Av and Rv.
+        """
         return np.power(10, -0.4 * theta[0] * (1. + self._kappa / theta[1]))
 
     def __add__(self, o):
@@ -161,6 +185,13 @@ class C2000():
         return CompositeSED(self, o, "*")
 
     def gradient(self, theta):
+        """ Gradient of the extinction law.
+
+        Parameters
+        ----------
+        theta: numpy.ndarray
+            Array with values of Av and Rv.
+        """
         grad = np.zeros((2, len(self.wave)))
         A = self.__call__(theta)
         # dAw / dAv
