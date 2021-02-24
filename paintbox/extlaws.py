@@ -131,7 +131,7 @@ class CCM89():
         return grad
 
 class C2000():
-    """ Calzetti et al. (2000) extinction law.
+    r""" Calzetti et al. (2000) extinction law.
 
     The extinction laws are calculated using a dust screen model, returning
     the ratio
