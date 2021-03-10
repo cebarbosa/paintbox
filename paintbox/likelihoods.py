@@ -42,7 +42,7 @@ class LogLike:
         self.mask = np.full(len(self.observed), True) if mask is None \
                     else mask
         self._N = len(self.mask)
-        self.parnames = self.model.parnames
+        self.parnames = self.model.parnames.copy()
         self._nparams = len(self.parnames)
 
 class NormalLogLike(LogLike):

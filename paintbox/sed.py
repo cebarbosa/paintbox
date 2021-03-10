@@ -47,7 +47,7 @@ class ParametricModel():
         self.wave = wave
         self.params = params
         self.data = data
-        self.parnames = self.params.colnames
+        self.parnames = self.params.colnames.copy()
         self._n = len(wave)
         self._nparams = len(self.parnames)
         # Interpolating models
@@ -169,9 +169,9 @@ class NonParametricModel():
         self.templates = np.atleast_2d(templates)
         self._nparams = len(self.templates)
         self._n = len(templates)
-        self.names = ["temp{}".format(n+1) for n in range(self._n)] if \
-            names is None else names
-        self.parnames = self.names
+        names = ["temp{}".format(n+1) for n in range(self._n)] if \
+                 names is None else names
+        self.parnames = names
         self._nparams = len(self.parnames)
 
     def __call__(self, theta):
