@@ -4,6 +4,9 @@ Paintbox
 .. image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
     :target: http://www.astropy.org
     :alt: Powered by Astropy Badge
+    
+.. image:: https://zenodo.org/badge/122373166.svg
+   :target: https://zenodo.org/badge/latestdoi/122373166
 
 Paintbox is a parametric modeling and fitting toolbox designed to build and
 model ths spectral energy distribution of galaxies from any kind of
