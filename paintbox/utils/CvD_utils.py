@@ -2,14 +2,31 @@
 import os
 
 import numpy as np
+import astropy.units as u
 from astropy.table import Table, vstack
 from astropy.io import fits
 from tqdm import tqdm
 from spectres import spectres
 
-def prepare_VCJ17(data_dir, wave, output, redo=False):
-    """ Prepare templates for SSP models from Villaume et al. (2017)."""
-    if os.path.exists(output) and not redo:
+def prepare_VCJ17(data_dir, wave, output, overwrite=False):
+    """ Prepare templates for SSP models from Villaume et al. (2017).
+
+    Parameters
+    ----------
+    data_dir: str
+        Path to the SSP models.
+    wave: np.array or astropy.Quantity
+        Wavelength dispersion. Default units in Angstrom is assumed if
+        wavelength is provided as as numpy array.
+    output: str
+        Name of the output file (a multi-extension FITS file)
+    overwrite: bool (optional)
+        Overwrite the output files if they already exist.
+
+    """
+    if hasattr(wave, "unit"):
+        wave = wave.to(u.Angstrom).value
+    if os.path.exists(output) and not overwrite:
         return
     specs = sorted(os.listdir(data_dir))
     nimf = 16
@@ -42,8 +59,23 @@ def prepare_VCJ17(data_dir, wave, output, redo=False):
     hdulist.writeto(output, overwrite=True)
     return
 
-def prepare_response_functions(data_dir, wave, out):
-    """ Prepare response functions from CvD models. """
+def prepare_response_functions(data_dir, wave, outprefix, redo=False):
+    """ Prepare response functions from CvD models.
+
+    Parameters
+    ----------
+    data_dir: str
+        Path to the response function files
+    wave: np.array
+        Wavelength dispersion.
+    outprefix: str
+        First part of the name of the response function output files. The
+        response functions are stored in different files for different
+        elements, named "{}_{}.fits".format(outprefix, element).
+    redo: bool (optional)
+        Overwrite output.
+
+    """
     specs = sorted(os.listdir(data_dir))
     # Read one spectrum to get name of columns
     with open(os.path.join(data_dir, specs[0])) as f:
@@ -59,7 +91,9 @@ def prepare_response_functions(data_dir, wave, out):
                     any(c in _ for c in ["+", "-"])])
     signal = ["+", "-"]
     for element in tqdm(elements, desc="Preparing response functions"):
-        output = "{}_{}.fits".format(out, element.replace("/", ""))
+        output = "{}_{}.fits".format(outprefix, element.replace("/", ""))
+        if os.path.exists(output) and not redo:
+            continue
         params = []
         rfs = []
         for spec in specs:
