@@ -47,7 +47,7 @@ containing the 636 SSP spectra in this case.
 
 ::
 
-    emiles_dir = os.path.join(os.getcwd(), "emiles_v11")
+    emiles_dir = "/home/kadu/Dropbox/SSPs/emiles_v11"
     w1 = 2600 # Minimum wavelength
     w2 = 10000 # Maximum wavelength
 
@@ -77,7 +77,7 @@ storing the parameters of the files.
     imf = "ch" # options: "un", "bi", "ku", "kb", "ch"
     imfslope = 1.3
     # Values of metallicities and ages available for BASTI isochrones
-    Zs = np.array([-0.96, -0.66, -0.35, -0.25, 0.06, 0.15,  0.26,  0.4]) 
+    Zs = np.array([-0.96, -0.66, -0.35, -0.25, 0.06, 0.15,  0.26,  0.4])
     Ts = np.linspace(1., 14., 27) # Using only ages > 1 Gyr
     ssps_grid = np.array(np.meshgrid(Ts, Zs)).T.reshape(-1, 2)
     nssps = len(ssps_grid)
@@ -114,11 +114,11 @@ of 200 km/s.
     extra_wave = 500
     idx = np.where((wave >= w1 - extra_wave) & (wave <= w2 + extra_wave))
     wave = wave[idx] # Trimming wavelength array
-    
+
     # Using first spectrum to get array size after rebbining
     flux = fits.getdata(os.path.join(emiles_dir, filenames[0]))[idx]
     wrange = [wave[0], wave[-1]]
-    newflux, logLam, velscale = ppxf_util.log_rebin(wrange, flux, 
+    newflux, logLam, velscale = ppxf_util.log_rebin(wrange, flux,
                                                      velscale=velscale)
     # Loop to trim and rebin spectra
     ssps = np.zeros((nssps, len(newflux)))
@@ -161,18 +161,19 @@ ages, metallicities, and IMFs, but also provide response functions that
 allow the variation of several individual elements, e.g., C, N, O, Mg,
 Si, Ca, Ti, and Fe. Below we show how to handle these models using
 **paintbox** utilities. For this example, we use the SSP models computed
-with the `VCJ stellar
-library <https://ui.adsabs.harvard.edu/abs/2017ApJS..230...23V/abstract>`__
+with the `Extended IRTF Spectral
+Library <https://ui.adsabs.harvard.edu/abs/2017ApJS..230...23V/abstract>`__
 version 8, and the response functions from Conroy et al. (2018) version
 3.
 
 ::
 
     import os
-    
+    import glob
+
     import numpy as np
     from paintbox.utils import CvD_utils
-    
+
     base_dir = "/home/kadu/Dropbox/SSPs/CvD18"
 
 We first need to point out the location of the models in our computer.
@@ -182,6 +183,7 @@ subdirectory.
 ::
 
     ssps_dir = os.path.join(base_dir, "VCJ_v8")
+    ssp_files = glob.glob(os.path.join(ssps_dir, "VCJ*.s100"))
 
 To prepare the data to a convenient wavelength dispersion and to store
 the models in a single FITS file for later use, we use the
@@ -192,13 +194,13 @@ paintbox.prepare_VCJ routine.
     # Defining an arbitrary wavelength region in the near IR
     w1, w2 = 8000, 13000 # Setting the wavelength window
     wave = np.arange(w1, w2)
-    output = os.path.join(os.getcwd(), "VCJ17_varydoublex_test.fits")
-    CvD_utils.prepare_VCJ17(ssps_dir, wave, output)
+    output = os.path.join(os.getcwd(), "CvD18_varydoublex_test.fits")
+    CvD_utils.prepare_CvD18(ssp_files, wave, output)
 
 
 .. parsed-literal::
 
-    Processing SSP files: 100%|██████████| 35/35 [09:38<00:00, 16.54s/it]
+    Processing SSP files: 100%|██████████| 35/35 [00:55<00:00,  1.58s/it]
 
 
 Similarly, we can prepare the response functions for the different
@@ -208,12 +210,14 @@ elements which can be later used in the fitting process.
 
     # Preparing response functions
     rfs_dir = os.path.join(base_dir, "RFN_v3")
-    # Each element will be saved in a different file, thus we just define prefix of the models
-    outprefix = os.path.join(base_dir, "C18_rfs") 
-    CvD_utils.prepare_response_functions(rfs_dir, wave, outprefix)
+    rf_files = glob.glob(os.path.join(rfs_dir, "atlas_ssp*.s100"))
+    # Each element will be saved in a different file, thus we define a prefix for the RFs
+    outprefix = os.path.join(os.getcwd(), "C18_rfs")
+    CvD_utils.prepare_response_functions(rf_files, wave, outprefix)
 
 
 .. parsed-literal::
 
-    Preparing response functions: 100%|██████████| 21/21 [02:56<00:00,  8.41s/it]
+    Preparing response functions: 100%|██████████| 25/25 [00:07<00:00,  3.26it/s]
+
 
