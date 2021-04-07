@@ -1,10 +1,10 @@
-1.2 (2020-04-05)
-----------------
+1.1.1 (2020-04-07)
+------------------
 
 - Fixed bug in shape of Cvd output after preparation of models.
 
-1.1 (2020-04-05)
-----------------
+1.1.0 (2020-04-05)
+------------------
 
 - Included tools to facilitate use of CvD models.
 - Included option to broad CvD models to a given velocity dispersion.
