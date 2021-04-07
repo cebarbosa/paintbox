@@ -1,3 +1,8 @@
+1.2 (2020-04-05)
+----------------
+
+- Fixed bug in shape of Cvd output after preparation of models.
+
 1.1 (2020-04-05)
 ----------------
 
