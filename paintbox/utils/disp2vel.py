@@ -2,7 +2,7 @@ import numpy as np
 import astropy.units as u
 
 
-def disp2vel(wave, velscale):
+def disp2vel(wrange, velscale):
     """ Returns a log-rebinned wavelength dispersion with constant velocity.
 
     This code is an adaptation of pPXF's log_rebin routine, simplified to
@@ -10,8 +10,8 @@ def disp2vel(wave, velscale):
 
     Parameters
     ----------
-    wave: np.array or astropy.Quantity
-        Input wavelength dispersion.
+    wrange: list, np.array or astropy.Quantity
+        Input wavelength dispersion range with two elements.
 
     velscale: float or astropy.Quantity
         Desired output velocity scale. Units are assumed to be km/s unless
@@ -19,21 +19,15 @@ def disp2vel(wave, velscale):
 
     """
     c = 299792.458  # Speed of light in km/s
-    if hasattr(wave, "unit"):
-        wunits = wave.unit
-        lamRange = np.array([wave[0].value, wave[-1].value])
-    else:
-        wunits = 1
-        lamRange = np.array([wave[0], wave[-1]])
+    if isinstance(wrange, list):
+        wrange = np.ndarray(wrange)
+    wunits = wrange.unit if hasattr(wrange, "unit") else 1
     if hasattr(velscale, "unit"):
         velscale = velscale.to(u.km/u.s).value
-    n = wave.shape[0]
-    dLam = np.diff(lamRange) / (n - 1.)
-    lim = lamRange / dLam + [+0.5, -0.5]  # Trimming wavelength
-    logLim = np.log(lim)
-    logScale = velscale / c
-    m = int(np.diff(logLim) / logScale)  # Number of output pixels
-    logLim[1] = logLim[0] + m * logScale
-    newBorders = np.exp(np.linspace(*logLim, num=m + 1))  # Logarithmically
-    logLam = np.log(np.sqrt(newBorders[1:] * newBorders[:-1]) * dLam)
-    return np.exp(logLam) * wunits
+    veldiff = np.log(np.max(wrange) / np.min(wrange)) * c
+    n = veldiff / velscale
+    m = int(n)
+    dv = 0.5 * (n-m) * velscale
+    v = np.arange(0, m * velscale, velscale) + dv
+    w = wrange[0] * np.exp(v / c)
+    return w * wunits
