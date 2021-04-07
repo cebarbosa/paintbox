@@ -33,7 +33,7 @@ def prepare_CvD18(ssp_files, wave, output, overwrite=False, sigma=100):
     """
     if hasattr(wave, "unit"):
         wave = wave.to(u.Angstrom).value
-    assert wave[0] >= 3500, "Minimum wavelength is 3500 Angstrom"
+    assert wave[0] >= 3501, "Minimum wavelength is 3501 Angstrom"
     assert wave[-1] <= 25000, "Maximum wavelength is 25000 Angstrom"
     assert sigma >= 100, "Minimum velocity dispersion is 100 km/s"
     if os.path.exists(output) and not overwrite:
@@ -64,8 +64,9 @@ def prepare_CvD18(ssp_files, wave, output, overwrite=False, sigma=100):
             ssp_broad = gaussian_filter1d(ssp_rebin, kernel_sigma,
                                           mode="constant", cval=0.0)
             newssp = spectres(wave, wvel, ssp_broad)
-        ssps.append(newssp.T)
-    ssps = np.array(ssps)
+
+        ssps.append(newssp)
+    ssps = np.vstack(ssps)
     params = vstack(params)
     hdu1 = fits.PrimaryHDU(ssps)
     hdu1.header["EXTNAME"] = "SSPS"
@@ -98,7 +99,7 @@ def prepare_response_functions(rf_files, wave, outprefix, overwrite=False,
     """
     if hasattr(wave, "unit"):
         wave = wave.to(u.Angstrom).value
-    assert wave[0] >= 3500, "Minimum wavelength is 3500 Angstrom"
+    assert wave[0] >= 3501, "Minimum wavelength is 3501 Angstrom"
     assert wave[-1] <= 25000, "Maximum wavelength is 25000 Angstrom"
     assert sigma >= 100, "Minimum velocity dispersion is 100 km/s"
     # Read one spectrum to get name of columns
@@ -113,6 +114,10 @@ def prepare_response_functions(rf_files, wave, outprefix, overwrite=False,
     fields = ["{}0.3".format(_) if _.endswith("-") else _ for _ in fields]
     elements = set([_.split("+")[0].split("-")[0] for _ in fields if
                     any(c in _ for c in ["+", "-"])])
+    outputs = ["{}_{}.fits".format(outprefix, element.replace("/", "_over_"))
+               for element in elements]
+    if all([os.path.exists(out) for out in outputs]) and not overwrite:
+        return outputs
     signal = ["+", "-"]
     velscale = int(sigma / 4)
     kernel_sigma = np.sqrt(sigma ** 2 - 100 ** 2) / velscale
@@ -169,6 +174,7 @@ def prepare_response_functions(rf_files, wave, outprefix, overwrite=False,
         hdu3.header["EXTNAME"] = "WAVE"
         hdulist = fits.HDUList([hdu1, hdu2, hdu3])
         hdulist.writeto(output, overwrite=True)
+    return outputs
 
 def example():
     """ Example of application for the preparation of CvD models. """
