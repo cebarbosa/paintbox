@@ -62,38 +62,50 @@ def broad2lick(wl, intens, obsres, vel=0):
                       mode="constant", cval=0.0)
     return intens2D.sum(axis=0)
 
-def broad2res(wave, intens, inres, outres):
-    """ Convolve input spectra to a given resolution.
+def broad2res(w, flux, obsres, outres, fluxerr=None):
+    """ Broad resolution of observed spectra to a given resolution.
 
-    Warning: This routine does not handle units, please keep consistency.
-
-    Input parameters
+    Input Parameters
     ----------------
-    wave : np.array
-        Linear wavelenght 1-D array in Angstroms.
+    w : np.array
+        Wavelength array
 
-    intens : np.array
-        Intensity 1-D array of Intensity, in arbitrary units. The
-        lenght has to be the same as wl.
+    flux: np.array
+        Spectrum to be broadened to the desired resolution.
 
-    inres : float
-        Input resolution (FWHM) of the spectrum
+    obsres : float or np.array
+        Observed wavelength spectral resolution FWHM.
 
     outres: float
-        Recession velocity of the measured spectrum.
+        Resolution FWHM  of the spectra after the broadening.
+
+    fluxerr: np.array
+        Spectrum errors whose uncertainties are propagated
 
     Output parameters
     -----------------
-    array_like
-        The convolved intensity 1-D array.
+    np.array:
+        Broadened spectra.
 
     """
-    fwhm_diff = np.sqrt(outres**2 - inres**2)
-    dw = wave[1] - wave[0]
-    dsigma = fwhm_diff / 2.3548 / dw
-    intens_broad = gaussian_filter1d(intens, dsigma,
-                      mode="constant", cval=0.0)
-    return intens_broad
+    dws = np.diff(w)
+    dw = np.median(dws)
+    assert np.all(np.isclose(dws, dw)), \
+        "Wavelength dispersion has to be constant!"
+    sigma_diff = np.sqrt(outres ** 2 - obsres ** 2) / 2.3548 / dw
+    diag = np.diag(flux)
+    for j in range(len(w)):
+        diag[j] = gaussian_filter1d(diag[j], sigma_diff[j], mode="constant",
+                                 cval=0.0)
+    newflux = diag.sum(axis=0)
+    if fluxerr is None:
+        return newflux
+    errdiag = np.diag(fluxerr)
+    for j in range(len(w)):
+        errdiag[j] = gaussian_filter1d(errdiag[j]**2, sigma_diff[j],
+                                       mode="constant", cval=0.0)
+    newfluxerr = np.sqrt(errdiag.sum(axis=0))
+    return newflux, newfluxerr
 
 if __name__ == "__main__":
     pass
