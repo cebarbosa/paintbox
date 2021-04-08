@@ -12,7 +12,7 @@ from scipy.ndimage.filters import gaussian_filter1d
 
 from .disp2vel import disp2vel
 
-def prepare_CvD18(ssp_files, wave, output, overwrite=False, sigma=100):
+def prepare_CvD18_ssps(ssp_files, wave, output, overwrite=False, sigma=100):
     """ Prepare templates for SSP models from Villaume et al. (2017).
 
     Parameters
@@ -36,6 +36,8 @@ def prepare_CvD18(ssp_files, wave, output, overwrite=False, sigma=100):
     assert wave[0] >= 3501, "Minimum wavelength is 3501 Angstrom"
     assert wave[-1] <= 25000, "Maximum wavelength is 25000 Angstrom"
     assert sigma >= 100, "Minimum velocity dispersion is 100 km/s"
+    assert all([os.path.exists(f) for f in ssp_files]), \
+           "Some or all input files are missing."
     if os.path.exists(output) and not overwrite:
         return
     nimf = 16
@@ -80,8 +82,8 @@ def prepare_CvD18(ssp_files, wave, output, overwrite=False, sigma=100):
     hdulist.writeto(output, overwrite=True)
     return
 
-def prepare_response_functions(rf_files, wave, outprefix, overwrite=False,
-                               sigma=100):
+def prepare_CvD18_respfun(rf_files, wave, outprefix, overwrite=False,
+                          sigma=100):
     """ Prepare response functions from CvD models.
 
     Parameters
@@ -102,6 +104,8 @@ def prepare_response_functions(rf_files, wave, outprefix, overwrite=False,
     assert wave[0] >= 3501, "Minimum wavelength is 3501 Angstrom"
     assert wave[-1] <= 25000, "Maximum wavelength is 25000 Angstrom"
     assert sigma >= 100, "Minimum velocity dispersion is 100 km/s"
+    assert all([os.path.exists(f) for f in rf_files]), \
+           "Some or all input files are missing."
     # Read one spectrum to get name of columns
     with open(rf_files[0]) as f:
         header = f.readline().replace("#", "")
@@ -182,11 +186,11 @@ def example():
     ssps_dir = os.path.join(data_dir, "VCJ_v8")
     ssp_files = glob.glob(os.path.join(ssps_dir, "VCJ*.s100"))
     wave = np.linspace(4000, 20000, 2000)
-    prepare_CvD18(ssp_files, wave, "CvD.fits", sigma=300, overwrite=True)
+    prepare_CvD18_ssps(ssp_files, wave, "CvD.fits", sigma=300, overwrite=True)
     rfs_dir = os.path.join(data_dir, "RFN_v3")
     rf_files = glob.glob(os.path.join(rfs_dir, "atlas_ssp*.s100"))
     outprefix = os.path.join(os.getcwd(), "rf")
-    prepare_response_functions(rf_files, wave, "rf", sigma=300)
+    prepare_CvD18_respfun(rf_files, wave, "rf", sigma=300)
 
 
 if __name__ == "__main__":
