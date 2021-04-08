@@ -20,7 +20,7 @@ def disp2vel(wrange, velscale):
     """
     c = 299792.458  # Speed of light in km/s
     if isinstance(wrange, list):
-        wrange = np.ndarray(wrange)
+        wrange = np.array(wrange)
     wunits = wrange.unit if hasattr(wrange, "unit") else 1
     if hasattr(velscale, "unit"):
         velscale = velscale.to(u.km/u.s).value
