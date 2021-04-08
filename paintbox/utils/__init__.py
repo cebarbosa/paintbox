@@ -2,3 +2,6 @@
 
 # This sub-module is destined for common non-package specific utility
 # functions.
+from .convolve import *
+from .CvD_utils import *
+from .lick import *
