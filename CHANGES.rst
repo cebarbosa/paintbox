@@ -1,7 +1,12 @@
+latest (unreleased)
+-------------------
+
+- Fixed behaviour of disp2vel for list inputs.
+
 1.1.1 (2020-04-07)
 ------------------
 
-- Fixed bug in shape of Cvd output after preparation of models.
+- Fixed bug in shape of CvD output after preparation of models.
 
 1.1.0 (2020-04-05)
 ------------------
