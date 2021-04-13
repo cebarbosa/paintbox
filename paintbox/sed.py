@@ -13,7 +13,7 @@ from scipy.special import legendre
 
 from .operators import CompositeSED
 
-__all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
+__all__ = ["ParametricModel", "NonParametricModel", "Polynomial", "NSSPs"]
 
 class ParametricModel():
     """
@@ -31,8 +31,11 @@ class ParametricModel():
     parnames: list
         Name of the variables of the SED model.
 
+    bounds: dict
+        Minimum and maximum bounds of the parameters of the model.
+
     """
-    def __init__(self, wave, params, data):
+    def __init__(self, wave, params, templates):
         """
         Parameters
         ----------
@@ -40,13 +43,13 @@ class ParametricModel():
             Wavelenght array of the model.
         params: astropy.table.Table
             Table with parameters of the models.
-        data: 2D ndarray
+        templates: 2D ndarray
             The SED templates with dimensions (len(params), len(wave))
 
         """
         self.wave = wave
         self.params = params
-        self.data = data
+        self.templates = templates
         self.parnames = self.params.colnames.copy()
         self._n = len(wave)
         self._nparams = len(self.parnames)
@@ -59,28 +62,36 @@ class ParametricModel():
             nodes.append(x)
         coords = np.meshgrid(*nodes, indexing='ij')
         dim = coords[0].shape + (self._n,)
-        data = np.zeros(dim)
+        templates = np.zeros(dim)
         with np.nditer(coords[0], flags=['multi_index']) as it:
             while not it.finished:
                 multi_idx = it.multi_index
                 x = np.array([coords[i][multi_idx] for i in range(len(coords))])
                 idx = (pdata == x).all(axis=1).nonzero()[0]
-                data[multi_idx] = self.data[idx]
+                templates[multi_idx] = self.templates[idx]
                 it.iternext()
-        self._interpolator = RegularGridInterpolator(nodes, data,
-                             bounds_error=False, fill_value=0)
+        self._interpolator = RegularGridInterpolator(nodes, templates,
+                                     bounds_error=False, fill_value=0)
         ########################################################################
         # Get grid points to handle derivatives
         inner_grid = []
         thetamin = []
         thetamax = []
+        eps = []
+        self.bounds = {}
         for par in self.parnames:
-            thetamin.append(np.min(self.params[par].data))
-            thetamax.append(np.max(self.params[par].data))
-            inner_grid.append(np.unique(self.params[par].data)[1:-1])
+            vmin = np.min(self.params[par].data)
+            vmax = np.max(self.params[par].data)
+            thetamin.append(vmin)
+            thetamax.append(vmax)
+            unique = np.unique(self.params[par].data)
+            eps.append(1e-4 * np.diff(unique).min())
+            inner_grid.append(unique[1:-1])
+            self.bounds[par] = (vmin, vmax)
         self._thetamin = np.array(thetamin)
         self._thetamax = np.array(thetamax)
         self._inner_grid = inner_grid
+        self._eps = np.array(eps)
 
     def __call__(self, theta):
         """ Call for interpolated model at a given point theta.
@@ -96,7 +107,11 @@ class ParametricModel():
         -------
         SED model at location theta.
         """
-        return self._interpolator(theta)[0]
+        theta = np.atleast_2d(theta)
+        out = self._interpolator(theta)
+        if out.shape[0] == 1:
+            return out[0]
+        return out
 
     def __add__(self, o):
         """ Addition between two SED components. """
@@ -106,7 +121,7 @@ class ParametricModel():
         """  Multiplication between two SED components. """
         return CompositeSED(self, o, "*")
 
-    def gradient(self, theta, eps=1e-6):
+    def gradient(self, theta):
         """ Gradient of models at a given point theta.
 
         Gradients are computed with simple finite difference. If the input
@@ -124,20 +139,27 @@ class ParametricModel():
 
         """
         # Clipping theta to avoid border problems
-        theta = np.maximum(theta, self._thetamin + 2 * eps)
-        theta = np.minimum(theta, self._thetamax - 2 * eps)
-        grads = np.zeros((self._nparams, self._n))
-        for i,t in enumerate(theta):
-            epsilon = np.zeros(self._nparams)
-            epsilon[i] = eps
+        theta = np.atleast_2d(theta)
+        dim = theta.shape[0]
+        tmin = np.tile(self._thetamin + 2 * self._eps, dim).reshape(
+                       theta.shape[0],-1)
+        tmax = np.tile(self._thetamax - 2 * self._eps, dim).reshape(
+                       theta.shape[0],-1)
+        theta = np.maximum(theta, tmin)
+        theta = np.minimum(theta, tmax)
+        grads = np.zeros((dim, self._nparams, self._n))
+        for i in range(self._nparams):
+            epsilon = np.zeros_like((theta))
+            eps = self._eps[i]
+            epsilon[:,i] = eps
             # Check if data point is in inner grid
-            in_grid = t in self._inner_grid[i]
-            if in_grid:
-                continue
-            else:
-                tp = theta + epsilon
-                tm = theta - epsilon
-                grads[i] = (self.__call__(tp) - self.__call__(tm)) / (2 * eps)
+            tp = theta + epsilon
+            tm = theta - epsilon
+            g = (self.__call__(tp) - self.__call__(tm)) / (2 * eps)
+            # Gradients not well-dined become zero
+            isin = np.isin(theta[:, i], self._inner_grid[i])
+            g[isin] = 0
+            grads[:,i,:] = g
         return grads
 
 class NonParametricModel():
@@ -259,3 +281,48 @@ class Polynomial():
     def gradient(self, theta):
         """ Gradient of the polynomial with weights theta. """
         return self.poly
+
+class NSSPs():
+    """ Stellar population model. """
+    def __init__(self, wave, params, templates, ncomp=2, wprefix=None):
+        assert isinstance(ncomp, int), "Number of components should be an " \
+                                       "integer."
+
+        self.params = params
+        self.wave = wave
+        self.templates = templates
+        self.ncomp = np.max([ncomp, 1])
+        self.wprefix = "w" if wprefix is None else wprefix
+        self.ssp = ParametricModel(self.wave, self.params, self.templates)
+        self.ncols = len(self.params.colnames)
+        self.nparams = self.ncomp * (len(self.params.colnames) + 1)
+        self.shape = (self.nparams, len(self.wave))
+        # Set parameter names
+        self.parnames = []
+        for n in range(self.ncomp):
+            for p in [self.wprefix] + self.params.colnames:
+                self.parnames.append("{}_{}".format(p, n+1))
+
+    def __call__(self, theta):
+        p = theta.reshape(self.ncomp, -1)
+        return np.dot(p[:,0], self.ssp(p[:, 1:]))
+
+    def gradient(self, theta):
+        grad = np.zeros(self.shape)
+        ps = theta.reshape(self.ncomp, -1)
+        ssps = self.ssp(ps[:,1:])
+        for i, p in enumerate(ps):
+            idx = i * (self.ncols + 1)
+            # dF/dFi
+            grad[idx] = ssps[i]
+            # dF / dSSPi
+            grad[idx+1:idx+1+self.ncols] = p[0] * self.ssp.gradient(p[1:])
+        return grad
+
+    def __add__(self, o):
+        """ Addition between two SED components. """
+        return CompositeSED(self, o, "+")
+
+    def __mul__(self, o):
+        """  Multiplication between two SED components. """
+        return CompositeSED(self, o, "*")
