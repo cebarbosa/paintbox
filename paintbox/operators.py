@@ -183,8 +183,9 @@ class CompositeSED():
 
     def __call__(self, theta):
         """ SED model for combined components at point theta. """
-        theta1 = theta[:self.o1._nparams]
-        theta2 = theta[self.o1._nparams:]
+        theta = np.atleast_2d(theta)
+        theta1 = theta[:, :self.o1._nparams]
+        theta2 = theta[:, self.o1._nparams:]
         if self.__op == "+":
             return self.o1(theta1) + self.o2(theta2)
         elif self.__op == "*":
@@ -192,10 +193,12 @@ class CompositeSED():
     
     def gradient(self, theta):
         """ Gradient of the combined SED model at point theta. """
+        theta = np.atleast_2d(theta)
         n = self.o1._nparams
-        theta1 = theta[:n]
-        theta2 = theta[n:]
-        grad = np.zeros(self._grad_shape)
+        theta1 = theta[:, :n]
+        theta2 = theta[:, n:]
+        grad = np.zeros(theta.shape[0], self._grad_shape[0],
+                        self._grad_shape[1])
         if self.__op == "+":
             grad[:n, :] = self.o1.gradient(theta1)
             grad[n:, :] = self.o2.gradient(theta2)
@@ -243,7 +246,7 @@ class Constrain():
         self.parnames = list(dict.fromkeys(sed.parnames))
         self.wave = self.sed.wave
         self._nparams = len(self.parnames)
-        self._shape = len(self.sed.parnames)
+        self._ntot = len(self.sed.parnames)
         self._idxs = {}
         for param in self.parnames:
             self._idxs[param] = np.where( \
@@ -251,9 +254,11 @@ class Constrain():
 
     def __call__(self, theta):
         """ Calculates the constrained model. """
-        t = np.zeros(self._shape)
-        for param, val in zip(self.parnames, theta):
-            t[self._idxs[param]] = val
+        theta = np.atleast_2d(theta)
+        dim = theta.shape[0]
+        t = np.zeros((dim, self._ntot))
+        for param, val in zip(self.parnames, theta.T):
+            t[:, self._idxs[param]] = val[:, None]
         return self.sed(t)
 
     def gradient(self, theta):
