@@ -1,6 +1,7 @@
 latest (unreleased)
 -------------------
 
+- New option for multiple components for parametric models.
 - Fixed behaviour of disp2vel for list inputs.
 
 1.1.1 (2020-04-07)

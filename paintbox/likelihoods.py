@@ -45,6 +45,10 @@ class LogLike:
         self.parnames = self.model.parnames.copy()
         self._nparams = len(self.parnames)
 
+    def __add__(o1, o2):
+        """ Addition of SED components. """
+        return JointLogLike(o1, o2)
+
 class NormalLogLike(LogLike):
     r""" Normal loglikelihood for SED modeling.
 
@@ -267,6 +271,16 @@ class JointLogLike():
                 idxs.append(self.parnames.index(p))
             self._idxs.append(np.array(idxs))
 
+
     def __call__(self, theta):
+        t1 = theta[self._idxs[0]]
+        t2 = theta[self._idxs[1]]
+        print(t1)
+        print(t2)
+        input()
         return self.logp1(theta[self._idxs[0]]) + \
                self.logp2(theta[self._idxs[1]])
+
+    def __add__(self, other):
+        """ Addition of SED components. """
+        return JointLogLike(self, other)

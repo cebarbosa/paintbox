@@ -183,9 +183,8 @@ class CompositeSED():
 
     def __call__(self, theta):
         """ SED model for combined components at point theta. """
-        theta = np.atleast_2d(theta)
-        theta1 = theta[:, :self.o1._nparams]
-        theta2 = theta[:, self.o1._nparams:]
+        theta1 = theta[:self.o1._nparams]
+        theta2 = theta[self.o1._nparams:]
         if self.__op == "+":
             return self.o1(theta1) + self.o2(theta2)
         elif self.__op == "*":
@@ -205,7 +204,7 @@ class CompositeSED():
         elif self.__op == "*":
             grad[:n, :] = self.o1.gradient(theta1) * self.o2(theta2)
             grad[n:, :] = self.o2.gradient(theta2) * self.o1(theta1)
-        return grad
+        return np.squeeze(grad)
 
     def __add__(self, o):
         """ Addition of SED components. """
@@ -254,11 +253,9 @@ class Constrain():
 
     def __call__(self, theta):
         """ Calculates the constrained model. """
-        theta = np.atleast_2d(theta)
-        dim = theta.shape[0]
-        t = np.zeros((dim, self._ntot))
+        t = np.zeros(self._ntot)
         for param, val in zip(self.parnames, theta.T):
-            t[:, self._idxs[param]] = val[:, None]
+            t[self._idxs[param]] = val
         return self.sed(t)
 
     def gradient(self, theta):

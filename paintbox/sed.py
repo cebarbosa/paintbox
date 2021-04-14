@@ -107,11 +107,8 @@ class ParametricModel():
         -------
         SED model at location theta.
         """
-        theta = np.atleast_2d(theta)
         out = self._interpolator(theta)
-        if out.shape[0] == 1:
-            return out[0]
-        return out
+        return np.squeeze(out)
 
     def __add__(self, o):
         """ Addition between two SED components. """
@@ -247,23 +244,32 @@ class Polynomial():
 
     """
 
-    def __init__(self, wave, degree):
+    def __init__(self, wave, degree, pname=None, zeroth=True):
         """
         Parameters
         ----------
         wave: ndarray, Quantity
             Wavelength array of the polynomials
         degree: int
-            Order of the Legendre polynomial.fg
+            Order of the Legendre polynomial
+        pname: str (optional)
+            Name of the polynomial to be used in parnames.
+        zeroth: bool (optional)
+            Controls used of zeroth order polynomial. Default is True (zero
+            order is used).
         """
         self.wave = wave
         self.degree = degree
         self._x = 2 * ((self.wave - self.wave.min()) /
                        (self.wave.max() - self.wave.min()) - 0.5)
-        self.poly = np.zeros((self.degree + 1, len(self._x)))
-        for i in np.arange(self.degree + 1):
-            self.poly[i] = legendre(i)(self._x)
-        self.parnames = ["p{}".format(i) for i in np.arange(degree+1)]
+        self.pname = "p" if pname is None else pname
+        orders = np.arange(self.degree +1)
+        if not zeroth:
+            orders = orders[1:]
+        self.poly = np.zeros((len(orders), len(self._x)))
+        for i, o in enumerate(orders):
+            self.poly[i] = legendre(o)(self._x)
+        self.parnames = ["{}_{}".format(self.pname, o) for o in orders]
         self._nparams = len(self.parnames)
 
     def __call__(self, theta):
@@ -295,7 +301,7 @@ class NSSPs():
         self.wprefix = "w" if wprefix is None else wprefix
         self.ssp = ParametricModel(self.wave, self.params, self.templates)
         self.ncols = len(self.params.colnames)
-        self.nparams = self.ncomp * (len(self.params.colnames) + 1)
+        self._nparams = self.ncomp * (len(self.params.colnames) + 1)
         self.shape = (self.nparams, len(self.wave))
         # Set parameter names
         self.parnames = []

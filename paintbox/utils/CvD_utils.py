@@ -11,18 +11,20 @@ from spectres import spectres
 from scipy.ndimage.filters import gaussian_filter1d
 from paintbox import ParametricModel, Constrain, CompositeSED
 
-from .disp2vel import disp2vel
+try:
+    from .disp2vel import disp2vel
+except:
+    from disp2vel import disp2vel
 
 class CvD18():
     def __init__(self, wave, ssp_files=None, rf_files=None, sigma=100,
                  store=True, outdir=None, outname=None, use_stored=True,
-                 elements=None, nssps=2, wprefix=None):
+                 elements=None, wprefix=None, norm=True):
         if hasattr(wave, "unit"):
             wave = wave.to(u.Angstrom).value
         self.wave = wave
         self.ssp_files = ssp_files
         self.rf_files = [] if rf_files is None else rf_files
-        self.nssps = np.max([nssps, 1])
         self.wprefix = "w" if wprefix is None else wprefix
         assert sigma >= 100, "Minumum velocity dispersion for models is 100 " \
                              "km/s."
@@ -42,6 +44,10 @@ class CvD18():
                            self.ssp_file)
         else:
             self.params, self.templates = self._read(self.ssp_file)
+        self.norm = 1.
+        if norm:
+            self.norm = np.median(self.templates, axis=1)
+            self.templates /= self.norm[:, None]
         self.limits = {}
         for param in self.params.colnames:
             vmin = self.params[param].data.min()
@@ -85,22 +91,11 @@ class CvD18():
                 vmax = rf.params[p].data.max()
                 self.limits[p] = (vmin, vmax)
         self._interpolator = Constrain(ssp)
-        if nssps == 1:
-            self.parnames = self._interpolator.parnames
-        else:
-            self.parnames = []
-            for n in range(self.nssps):
-                for p in [self.wprefix] + self._interpolator.parnames:
-                    self.parnames.append("{}_{}".format(p, n + 1))
-        self.nparams = len(self.parnames)
+        self.parnames = self._interpolator.parnames
+        self._nparams = len(self.parnames)
 
     def __call__(self, theta):
-        p = theta.reshape(self.nssps, -1)
-        return np.dot(p[:, 0], self._interpolator(p[:, 1:]))
-
-    def get_spectrum(self, theta):
         return self._interpolator(theta)
-
 
     def __add__(self, o):
         """ Addition between two SED components. """
@@ -188,7 +183,8 @@ class CvD18():
         templates = fits.getdata(filename)
         params = Table.read(filename, hdu=1)
         wave = Table.read(filename, hdu=2)
-        assert all(wave["wave"].data == self.wave), "Wavelength of input and " \
+        assert np.all(wave["wave"].data == self.wave), "Wavelength of input " \
+                                                      "and " \
                                                "models do not match."
         return params, templates
 
@@ -283,7 +279,7 @@ def example():
     ssp_files = glob.glob(os.path.join(ssps_dir, "VCJ*.s100"))
     rfs_dir = os.path.join(data_dir, "RFN_v3")
     rf_files = glob.glob(os.path.join(rfs_dir, "atlas_ssp*.s100"))
-    wave = np.linspace(4000, 20000, 2000)
+    wave = disp2vel(np.array([7000, 12000]), 100)
     outdir = os.path.join(data_dir, "CvD_test")
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -294,15 +290,19 @@ def example():
     outname = "_".join(names[0][idx]).replace("s100", "s{}".format(sigma))
     ssp = CvD18(wave, ssp_files=ssp_files, rf_files=rf_files, sigma=300,
                   outdir=outdir, outname=outname)
-    w1 = 1
-    w2 = 0.2
-    pold = np.array([0.2, 12, 2.5, 2.5])
-    pyoung = np.array([-0.5, 2., 2.5, 2.5])
-    pcomposite = np.hstack([w1, pold, w2, pyoung])
-    print()
-    plt.plot(wave, ssp(pcomposite), "-")
-    plt.plot(wave, w1 * ssp.get_spectrum(pold))
-    plt.plot(wave, w2 * ssp.get_spectrum(pyoung))
+    w1 = 0.5
+    w2 = 0.5
+    # Making arrays with minimum and maximum available parameters
+    pyoung= np.array([ssp.limits[p.split("_")[0]][0] for p in ssp.specpars])
+    pold = np.array([ssp.limits[p.split("_")[0]][1] for p in ssp.specpars])
+    pcomposite = np.hstack([w1, pyoung, w2, pold])
+    plt.plot(wave, ssp(pcomposite), "-", label="Composite population")
+    plt.plot(wave, w1 * ssp.get_spectrum(pold), label="Old populaiton")
+    plt.plot(wave, w2 * ssp.get_spectrum(pyoung), label="Young population")
+    plt.legend()
+    plt.xlabel(r"$\lambda$ (Angstrom)")
+    plt.ylabel(r"Flux (normalized)")
+    plt.tight_layout()
     plt.show()
 
 
