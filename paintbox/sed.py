@@ -26,31 +26,22 @@ class ParametricModel():
     scipy.RegularGridInterpolator for better performance with large number of
     input models, thus the input data must be in the form of a regular grid.
 
-    Attributes
+    Parameters
     ----------
-    parnames: list
-        Name of the variables of the SED model.
-
-    bounds: dict
-        Minimum and maximum bounds of the parameters of the model.
+    wave: ndarray, astropy.units.Quantity
+        Wavelenght array of the model.
+    params: astropy.table.Table
+        Table with parameters of the models.
+    templates: 2D ndarray
+        The SED templates with dimensions (len(params), len(wave))
 
     """
     def __init__(self, wave, params, templates):
-        """
-        Parameters
-        ----------
-        wave: ndarray, Quantity
-            Wavelenght array of the model.
-        params: astropy.table.Table
-            Table with parameters of the models.
-        templates: 2D ndarray
-            The SED templates with dimensions (len(params), len(wave))
-
-        """
+        """ """
         self.wave = wave
         self.params = params
         self.templates = templates
-        self.parnames = self.params.colnames.copy()
+        self._parnames = self.params.colnames.copy()
         self._n = len(wave)
         self._nparams = len(self.parnames)
         # Interpolating models
@@ -78,7 +69,7 @@ class ParametricModel():
         thetamin = []
         thetamax = []
         eps = []
-        self.bounds = {}
+        limits = {}
         for par in self.parnames:
             vmin = np.min(self.params[par].data)
             vmax = np.max(self.params[par].data)
@@ -87,7 +78,8 @@ class ParametricModel():
             unique = np.unique(self.params[par].data)
             eps.append(1e-4 * np.diff(unique).min())
             inner_grid.append(unique[1:-1])
-            self.bounds[par] = (vmin, vmax)
+            limits[par] = (vmin, vmax)
+        self._limits = limits
         self._thetamin = np.array(thetamin)
         self._thetamax = np.array(thetamax)
         self._inner_grid = inner_grid
@@ -101,7 +93,7 @@ class ParametricModel():
         theta: ndarray
             Point where the model is computed, with parameters in
             the same order of parnames. Points outside of the convex hull of
-            the models are set to zero.
+            the models (as defined in the limits) are set to zero.
 
         Returns
         -------
@@ -117,6 +109,16 @@ class ParametricModel():
     def __mul__(self, o):
         """  Multiplication between two SED components. """
         return CompositeSED(self, o, "*")
+
+    @property
+    def parnames(self):
+        """ List of parameter names. """
+        return self._parnames
+
+    @property
+    def limits(self):
+        """ Lower and upper limits of the parameters. """
+        return self._limits
 
     def gradient(self, theta):
         """ Gradient of models at a given point theta.
