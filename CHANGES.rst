@@ -1,7 +1,7 @@
-latest (unreleased)
+1.2 (unreleased)
 -------------------
 
-- New option for multiple components for parametric models.
+- New, simple interface for CvD models.
 - Fixed behaviour of disp2vel for list inputs.
 
 1.1.1 (2020-04-07)

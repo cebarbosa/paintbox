@@ -17,6 +17,22 @@ except:
     from disp2vel import disp2vel
 
 class CvD18():
+    """ Utility class for the use of CvD models.
+
+    This class provides a convenient interface to CvD models, including both
+    the base SSP models and also response functions for several chemical
+    elements.
+
+    Attributes
+    ----------
+    parnames: list
+        Name of the templates.
+    Parameters
+    ----------
+
+
+
+    """
     def __init__(self, wave, ssp_files=None, rf_files=None, sigma=100,
                  store=True, outdir=None, outname=None, use_stored=True,
                  elements=None, wprefix=None, norm=True):

@@ -271,15 +271,10 @@ class JointLogLike():
                 idxs.append(self.parnames.index(p))
             self._idxs.append(np.array(idxs))
 
-
     def __call__(self, theta):
         t1 = theta[self._idxs[0]]
         t2 = theta[self._idxs[1]]
-        print(t1)
-        print(t2)
-        input()
-        return self.logp1(theta[self._idxs[0]]) + \
-               self.logp2(theta[self._idxs[1]])
+        return self.logp1(t1) + self.logp2(t2)
 
     def __add__(self, other):
         """ Addition of SED components. """
