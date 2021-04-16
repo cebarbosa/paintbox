@@ -198,10 +198,6 @@ class CvD18():
         functions. """
         templates = fits.getdata(filename)
         params = Table.read(filename, hdu=1)
-        wave = Table.read(filename, hdu=2)
-        assert np.all(wave["wave"].data == self.wave), "Wavelength of input " \
-                                                      "and " \
-                                               "models do not match."
         return params, templates
 
 
