@@ -47,6 +47,8 @@ class CvD18():
         self.sigma = sigma
         self.store = store
         self.outdir = os.getcwd() if outdir is None else outdir
+        if not os.path.exists(self.outdir):
+            os.mkdir(self.outdir)
         self.outname = "CvD18" if outname is None else outname
         # Processing and reading stellar population models
         self.ssp_file = os.path.join(self.outdir,
@@ -63,7 +65,7 @@ class CvD18():
         self.norm = 1.
         if norm:
             self.norm = np.median(self.templates, axis=1)
-            self.templates /= self.norm[:, None]
+            self.templates /= self.norm[:, np.newaxis]
         self.limits = {}
         for param in self.params.colnames:
             vmin = self.params[param].data.min()
