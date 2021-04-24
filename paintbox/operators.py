@@ -192,18 +192,16 @@ class CompositeSED():
     
     def gradient(self, theta):
         """ Gradient of the combined SED model at point theta. """
-        theta = np.atleast_2d(theta)
         n = self.o1._nparams
-        theta1 = theta[:, :n]
-        theta2 = theta[:, n:]
-        grad = np.zeros(theta.shape[0], self._grad_shape[0],
-                        self._grad_shape[1])
+        theta1 = theta[:n]
+        theta2 = theta[n:]
+        grad = np.zeros(self._grad_shape)
         if self.__op == "+":
-            grad[:n, :] = self.o1.gradient(theta1)
-            grad[n:, :] = self.o2.gradient(theta2)
+            grad[:n] = self.o1.gradient(theta1)
+            grad[n:] = self.o2.gradient(theta2)
         elif self.__op == "*":
-            grad[:n, :] = self.o1.gradient(theta1) * self.o2(theta2)
-            grad[n:, :] = self.o2.gradient(theta2) * self.o1(theta1)
+            grad[:n] = self.o1.gradient(theta1) * self.o2(theta2)
+            grad[n:] = self.o2.gradient(theta2) * self.o1(theta1)
         return np.squeeze(grad)
 
     def __add__(self, o):
