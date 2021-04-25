@@ -127,13 +127,13 @@ class Resample():
     def __call__(self, theta):
         """ Performs the resampling. """
         model = self.obj(theta)
-        rebin = spectres(self.wave, self._inwave, model)
+        rebin = spectres(self.wave, self._inwave, model, fill=0, verbose=False)
         return rebin
 
     def gradient(self, theta):
         """ Calculation the the gradient of the resampled model. """
         grads = self.obj.gradient(theta)
-        grads = spectres(self.wave, self._inwave, grads)
+        grads = spectres(self.wave, self._inwave, grads, fill=0, verbose=False)
         return grads
 
     def __add__(self, o):
