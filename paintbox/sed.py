@@ -41,7 +41,7 @@ class ParametricModel():
         self.wave = wave
         self.params = params
         self.templates = templates
-        self._parnames = self.params.colnames.copy()
+        self.parnames = self.params.colnames.copy()
         self._n = len(wave)
         self._nparams = len(self.parnames)
         # Interpolating models
@@ -59,7 +59,8 @@ class ParametricModel():
                 multi_idx = it.multi_index
                 x = np.array([coords[i][multi_idx] for i in range(len(coords))])
                 idx = (pdata == x).all(axis=1).nonzero()[0]
-                templates[multi_idx] = self.templates[idx]
+                if idx.size > 0:
+                    templates[multi_idx] = self.templates[idx]
                 it.iternext()
         self._interpolator = RegularGridInterpolator(nodes, templates,
                                      bounds_error=False, fill_value=0)
@@ -110,10 +111,14 @@ class ParametricModel():
         """  Multiplication between two SED components. """
         return CompositeSED(self, o, "*")
 
-    @property
-    def parnames(self):
-        """ List of parameter names. """
-        return self._parnames
+    # @property
+    # def parnames(self):
+    #     """ List of parameter names. """
+    #     return self._parnames
+    #
+    # @parnames.setter
+    # def parnames(self, l):
+    #     self._parnamaes = l
 
     @property
     def limits(self):

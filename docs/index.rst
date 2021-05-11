@@ -45,7 +45,8 @@ Instalation from the source is also possible through the project's `github page
 
 Tutorials
 ---------
-
+.. toctree:: basic_classes.rst
+   :maxdepth: 2
 .. toctree:: preparing_models.rst
    :maxdepth: 2
 .. toctree:: building_models.rst
