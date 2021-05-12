@@ -90,3 +90,8 @@ ENV/
 
 # Pycharm configuration files.
 .idea/
+
+# Test files
+tutorials/CvD18_test/
+tutorials/emiles_chabrier_w2600_10000_vel200.fits
+tutorials/s_coelho14_sed/
