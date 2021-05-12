@@ -1,8 +1,9 @@
-1.2 (unreleased)
--------------------
+1.2.0 (2020-05-12)
+------------------
 
 - New, simple interface for CvD models.
 - Fixed behaviour of disp2vel for list inputs.
+- Included examples for simple classes and CvD models
 
 1.1.1 (2020-04-07)
 ------------------

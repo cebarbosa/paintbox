@@ -91,7 +91,7 @@ any combination.
 
 
 
-.. image:: figures/templates_emission.png
+.. image:: figures/example_emission_lines.png
 
 
 Parametric models

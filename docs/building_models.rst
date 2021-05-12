@@ -60,7 +60,7 @@ SSP models.
     Parameters for example:  [0.1 6.  2.3 2.3]
 
 
-.. image:: building_models_files/building_models_3_2.png
+.. image:: figures/building_models_3_2.png
 
 
 The SSP models contain elemental abundances that have solar values, but
@@ -131,7 +131,7 @@ that are repeated.
     Parameters for non-solar abundances:  [0.1  6.   2.3  2.3  0.05 0.05 0.05 0.05]
 
 
-.. image:: building_models_files/building_models_11_2.png
+.. image:: figures/building_models_11_2.png
 
 
 Emission lines
