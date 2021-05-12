@@ -60,7 +60,7 @@ with the built-in tools from ``ppxf``.
 
 
 
-.. image:: figures/example_emission_lines.png
+.. image:: figures/templates_emission.png
 
 
 In ``paintbox``, a combination of such templates can be invoked with the
