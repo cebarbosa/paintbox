@@ -6,17 +6,8 @@ into different parts, such as the light from the stars, the emission
 lines from the gas, and the attenuation of the light as a whole owing to
 dust absorption. Similarly, ``paintbox`` uses different ingredients to
 build a model for the SED that com be combined to produce a SED model.
-Here we describe the main classes used for this purpose.
-
-Non-parametric models
-~~~~~~~~~~~~~~~~~~~~~
-
-Often the components in the SED can be modeled as a combination of
-templates, and this method have been extensively explored by some tools
-such as ```ppxf`` <https://pypi.org/project/ppxf/>`__ and
-```Starlight`` <http://www.starlight.ufsc.br/>`__. One instance is the
-modeling of emission lines, which we use below to produce some templates
-with the built-in tools from ``ppxf``.
+Here we describe the main classes used for this purpose. We assume the
+following imports:
 
 ::
 
@@ -24,21 +15,38 @@ with the built-in tools from ``ppxf``.
     import numpy as np
     import astropy.units as u
     from astropy.modeling import models
+    from astropy.io import fits
+    from astropy.table import Table, vstack
     import matplotlib.pyplot as plt
     import paintbox as pb
     from paintbox import utils
     from ppxf import ppxf_util, miles_util
-    
-    # Generating an wavelenght array spaced logarithmically with
+
+Non-parametric models
+~~~~~~~~~~~~~~~~~~~~~
+
+The SED of galaxies can be modeled as a superposition of templates,
+i.e., given a set of SED models *A*, an observed spectrum (or some parts
+of it) can described as an weighted sum of models in *A*. In this case,
+the problem of modeling the SED becomes to find an optimal set of
+weights. This method have been extensively explored by some tools such
+as ```ppxf`` <https://pypi.org/project/ppxf/>`__ and
+```Starlight`` <http://www.starlight.ufsc.br>`__. For instance, in the
+modeling of emission lines, ``ppxf`` provides a simple tool to produce
+templates of the most important optical lines, as shown below.
+
+::
+
+    # Generating an wavelength array spaced logarithmically with
     # fixed velocity scale
     wrange = [4000, 7000]
     velscale = 30 # Velocity shift between pixels
     FWHM = 2.8 # Resolution of the observation
-    
+
     # Simple tool to get velocity dispersion with fixed velscale within a given range
-    wave = utils.disp2vel(wrange, velscale) 
+    wave = utils.disp2vel(wrange, velscale)
     logwave = np.log(wave)
-    
+
     gas_templates, gas_names, line_wave = ppxf_util.emission_lines(
             logwave, [wave[0], wave[-1]], FWHM,
             tie_balmer=False, limit_doublets=True)
@@ -52,6 +60,7 @@ with the built-in tools from ``ppxf``.
     plt.show()
 
 
+
 .. parsed-literal::
 
     Emission lines included in gas templates:
@@ -63,9 +72,11 @@ with the built-in tools from ``ppxf``.
 .. image:: figures/templates_emission.png
 
 
-In ``paintbox``, a combination of such templates can be invoked with the
-``NonParametricModel`` class, which can be used to produce an SED with
-any combination.
+In ``paintbox``, we can also use templates as those shown above using
+the `~paintbox.NonParametricModel` class. For instance, to use the emission
+line
+templates shown above, we just need to do the following:
+
 
 ::
 
@@ -82,17 +93,35 @@ any combination.
     plt.ylabel("Flux")
     plt.show()
 
-
 .. parsed-literal::
 
-    Name of the parameters ['Hdelta', 'Hgamma', 'Hbeta', 'Halpha', '[SII]6731d1', '[SII]6731d2', '[OIII]5007d', '[OI]6300d', '[NII]6583d']
-    Random fluxes of emission lines: 
-    ('Hdelta', 0.3990546446177675) ('Hgamma', 0.3720088069901858) ('Hbeta', 0.6910604161313084) ('Halpha', 0.8516915271249351) ('[SII]6731d1', 0.029682220572311957) ('[SII]6731d2', 0.9276260263988682) ('[OIII]5007d', 0.03600336387628489) ('[OI]6300d', 0.24220613814452097) ('[NII]6583d', 0.49044717730270126)
+    Name of the templates:  Hdelta, Hgamma, Hbeta, Halpha, [SII]6731d1, [SII]6731d2, [OIII]5007d, [OI]6300d, [NII]6583d
 
+Now, the ``emission`` object above can be called to produce a linear
+combination of all templates by providing a set of weights, given in the
+order indicated by the ``parnames``\ parameter, as indicated in the
+example below.
 
+::
+
+    # Generating some random flux for each emission line
+    theta = np.random.random(len(gas_names))
+    print("Random fluxes of emission lines: ")
+    print(*zip(emission.parnames, theta))
+    fig = plt.figure(figsize=(8, 6))
+    plt.plot(wave, emission(theta))
+    plt.xlabel("$\lambda$ (Angstrom)")
+    plt.ylabel("Flux")
+    plt.show()
 
 .. image:: figures/example_emission_lines.png
 
+In practice, this class can be used in different ways, including
+emission line modeling, sky and telluric removal / correction, and also
+with stellar population models. Moreover, ``NonParametricModel``
+compononents can be combined with any SED components in ``paintbox``,
+and they can be modified later to include, e.g., kinematics and dust
+attenuation.
 
 Parametric models
 ~~~~~~~~~~~~~~~~~
@@ -143,9 +172,6 @@ demonstrate how to use this class.
         table.append(t)
         templates[i] = fits.getdata(os.path.join(models_dir, filename))
     table = vstack(table) # Join all tables in one
-
-::
-
     # Use paintbox to interpolate models.
     star = pb.ParametricModel(wave, table, templates)
     print("Parameters: ", star.parnames)
@@ -164,5 +190,22 @@ demonstrate how to use this class.
     Limits for the parameter:  {'T': (3000.0, 26000.0), 'g': (-0.5, 5.5), 'Z': (-1.3, 0.2), 'alpha': (0.0, 0.4)}
 
 
-
 .. image:: figures/interpolated_star.png
+
+The above code illustrates how to *prepare* the data for
+``paintbox``\ ingestion for a particular case, but we notice that the
+``ParametricModel`` class require only three arguments, the wevelength
+array (one for each spectral element), an ``astropy.table.Table`` object
+that contains the parameters of the model, and a 2D ``numpy.ndarray``
+with the correspondent models for each table row. There is no single
+standard of distribution for model files, and such preliminary
+preprocessing is often necessary. However, for a few popular stellar
+population models, there are utility classes distributed with
+``paintbox`` that already perform this task and provide production-ready
+classes. Please check the building_models tutorial and documentation for
+more details.
+
+Polynomials
+~~~~~~~~~~~
+
+TBW.

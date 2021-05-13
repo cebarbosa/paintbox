@@ -22,6 +22,8 @@ Requirements
 
 **paintbox** has the followong requirements:
 
+- `Numpy <https://numpy.org/>`_
+- `Scipy <https://www.scipy.org/>`_
 - `Python <https://www.python.org/>`_ 3.7 or later
 - `astropy <https://www.astropy.org/>`_ 4.0 or later
 - `spectres <https://spectres.readthedocs.io/en/latest/>`_
@@ -48,8 +50,6 @@ Tutorials
 .. toctree:: basic_classes.rst
    :maxdepth: 2
 .. toctree:: preparing_models.rst
-   :maxdepth: 2
-.. toctree:: building_models.rst
    :maxdepth: 2
 
 

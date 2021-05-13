@@ -134,16 +134,6 @@ that are repeated.
 .. image:: figures/building_models_11_2.png
 
 
-Emission lines
-~~~~~~~~~~~~~~
-
-TBD.
-
-Polynomials
-~~~~~~~~~~~
-
-TBD.
-
 
 
 
