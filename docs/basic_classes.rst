@@ -73,7 +73,7 @@ templates of the most important optical lines, as shown below.
 
 
 In `paintbox`, we can also use templates as those shown above using
-the :meth:`../paintbox/sed/NonParametricModel` class. For instance, to use the
+the :meth:`paintbox.sed.NonParametricModel` class. For instance, to use the
 emission line templates shown above, we just need to do the following:
 
 
