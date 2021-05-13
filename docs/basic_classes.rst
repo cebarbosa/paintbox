@@ -73,7 +73,7 @@ templates of the most important optical lines, as shown below.
 
 
 In `paintbox`, we can also use templates as those shown above using
-the `NonParametricModel <https://paintbox.readthedocs.io/en/latest/basic_classes.html#non-parametric-models>`_ class. For instance, to use the
+the ``NonParametricModel`` class. For instance, to use the
 emission line templates shown above, we just need to do the following:
 
 
@@ -117,7 +117,7 @@ example below.
 
 In practice, this class can be used in different ways, including
 emission line modeling, sky and telluric removal / correction, and also
-with stellar population models. Moreover, `NonParametricModel <https://paintbox.readthedocs.io/en/latest/basic_classes.html#non-parametric-models>`_
+with stellar population models. Moreover, ``NonParametricModel``
 compononents can be combined with any SED components in `paintbox`,
 and they can be modified later to include, e.g., kinematics and dust
 attenuation.
@@ -128,15 +128,15 @@ Parametric models
 In several applications, we are interested in the determination of the
 parameters involved in the modeling of the SED, for instance, the age or
 the metallicity of a stellar population model that better describes some
-observations. The `NonParametricModel <https://paintbox.readthedocs.io/en/latest/basic_classes.html#non-parametric-models>`_ class above can be used for
+observations. The ``NonParametricModel`` class above can be used for
 that purpose, of course, but the problem of determining the correct
 weights becomes more difficult as we include more templates. One
 alternative is thus tointerpolate the models such that we can have a SED
 description for any particular combination of parameters within a convex
 hull defined by the limits of the model. In this case, we can use the
-`ParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed.ParametricModel.html#paintbox.sed.ParametricModel>`_ class. In the example below, we use a set
+``ParametricModel`` class. In the example below, we use a set
 of theoretical stellar models from `Coelho
-(2014) <https://ui.adsabs.harvard.edu/abs/2014MNRAS.440.1027C/abstract>`__,
+(2014) <https://ui.adsabs.harvard.edu/abs/2014MNRAS.440.1027C/abstract>`_,
 which you can download `here <http://specmodels.iag.usp.br/>`__ to
 demonstrate how to use this class.
 
@@ -192,9 +192,9 @@ demonstrate how to use this class.
 .. image:: figures/interpolated_star.png
 
 The above code illustrates how to *prepare* the data for
-``paintbox``\ ingestion for a particular case, but we notice that the
+``paintbox`` ingestion for a particular case, but we notice that the
 ``ParametricModel`` class require only three arguments, the wevelength
-array (one for each spectral element), an ``astropy.table.Table`` object
+array (one for each spectral element), an `astropy.table.Table <https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table>`_ object
 that contains the parameters of the model, and a 2D ``numpy.ndarray``
 with the correspondent models for each table row. There is no single
 standard of distribution for model files, and such preliminary
