@@ -73,7 +73,7 @@ templates of the most important optical lines, as shown below.
 
 
 In `paintbox`, we can also use templates as those shown above using
-the `NonParametricModel <https://paintbox.readthedocs.io/en/latest/basic_classes.html#non-parametric-models>`_ class. For instance, to use the
+the `NonParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed.NonParametricModel.html#paintbox.sed.NonParametricModel>`_ class. For instance, to use the
 emission line templates shown above, we just need to do the following:
 
 
@@ -117,7 +117,7 @@ example below.
 
 In practice, this class can be used in different ways, including
 emission line modeling, sky and telluric removal / correction, and also
-with stellar population models. Moreover, `NonParametricModel <https://paintbox.readthedocs.io/en/latest/basic_classes.html#non-parametric-models>`_
+with stellar population models. Moreover, `NonParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed.NonParametricModel.html#paintbox.sed.NonParametricModel>`_
 compononents can be combined with any SED components in `paintbox`,
 and they can be modified later to include, e.g., kinematics and dust
 attenuation.
@@ -128,7 +128,7 @@ Parametric models
 In several applications, we are interested in the determination of the
 parameters involved in the modeling of the SED, for instance, the age or
 the metallicity of a stellar population model that better describes some
-observations. The `NonParametricModel <https://paintbox.readthedocs.io/en/latest/basic_classes.html#non-parametric-models>`_ class above can be used for
+observations. The `NonParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed.NonParametricModel.html#paintbox.sed.NonParametricModel>`_ class above can be used for
 that purpose, of course, but the problem of determining the correct
 weights becomes more difficult as we include more templates. One
 alternative is thus tointerpolate the models such that we can have a SED
