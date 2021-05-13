@@ -192,9 +192,9 @@ demonstrate how to use this class.
 .. image:: figures/interpolated_star.png
 
 The above code illustrates how to *prepare* the data for
-`paintbox` ingestion for a particular case, but we notice that the
-`ParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed.ParametricModel.html#paintbox.sed.ParametricModel>`_ class require only three arguments, the wevelength
-array (one for each spectral element), an `astropy.table.Table <https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table>`_ object
+``paintbox``\ ingestion for a particular case, but we notice that the
+``ParametricModel`` class require only three arguments, the wevelength
+array (one for each spectral element), an ``astropy.table.Table`` object
 that contains the parameters of the model, and a 2D ``numpy.ndarray``
 with the correspondent models for each table row. There is no single
 standard of distribution for model files, and such preliminary
