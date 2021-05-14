@@ -271,7 +271,7 @@ where the free parameters are the total extinction :math:`A_V` and the
 total-to-selective extinction :math:`R_V`. These models can be used as
 follow:
 
-::
+.. code:: ipython3
 
     import numpy as np
     import paintbox as pb
@@ -287,6 +287,5 @@ follow:
     plt.xlabel("$\lambda$ (Angstrom)")
     plt.ylabel("$f_\lambda / f_\lambda^0$")
     plt.legend()
-    plt.savefig("extlaws.png")
 
 .. image:: figures/extlaws.png
