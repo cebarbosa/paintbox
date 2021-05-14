@@ -289,6 +289,4 @@ follow:
     plt.legend()
     plt.savefig("extlaws.png")
 
-
-
 .. image:: figures/extlaws.png
