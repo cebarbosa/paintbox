@@ -161,7 +161,8 @@ class C2000():
             self.wave = wave
             self.unit = u.AA if unit is None else u.Quantity(unit)
         x = 1 / (self.wave * self.unit).to(u.micrometer).value
-        self._kappa = np.where(self.wave > 0.63 * u.micrometer,
+        wtran = (0.63 * u.micrometer).to(self.unit).value
+        self._kappa = np.where(self.wave > wtran,
                                2.659 * (-1.857 + 1.040 * x), \
                                2.659 * (-2.156 + 1.509 * x - 0.198 * x * x
                                        + 0.011 * (x * x * x)))
