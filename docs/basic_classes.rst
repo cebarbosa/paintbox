@@ -261,7 +261,7 @@ Currently, ``paintbox``\ supports two extinction laws, ``CCM89`` for the
 relation used by `Cardelli, Clayton and Mathis
 (1989) <https://ui.adsabs.harvard.edu/abs/1989ApJ...345..245C/abstract>`__
 for the Milky Way, and ``C2000`` proposed by
-[Calzetti]https://ui.adsabs.harvard.edu/abs/2000ApJ…533..682C/abstract).
+`Calzetti <https://ui.adsabs.harvard.edu/abs/2000ApJ...533..682C/abstract>`__..
 In both cases, ``paintbox``\ returns the attenuated flux according to a
 dust screen model,
 
