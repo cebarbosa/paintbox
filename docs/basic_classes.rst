@@ -1,4 +1,4 @@
-The basic paintbox classes
+The base paintbox classes
 ==========================
 
 The spectral energy distribution (SED) of galaxies can be decomposite
@@ -6,8 +6,13 @@ into different parts, such as the light from the stars, the emission
 lines from the gas, and the attenuation of the light as a whole owing to
 dust absorption. Similarly, `paintbox` uses different ingredients to
 build a model for the SED that com be combined to produce a SED model.
-Here we describe the main classes used for this purpose. We assume the
-following imports:
+We start with two base classes used to handle models in the
+form of templates,
+`NonParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox
+.sed.NonParametricModel.html#paintbox.sed.NonParametricModel>`_ and
+`ParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed
+.ParametricModel.html#paintbox.sed.ParametricModel>`_, and then we show the
+auxiliary classes used to modify the SED in general.
 
 ::
 
@@ -22,6 +27,7 @@ following imports:
     from paintbox import utils
     from ppxf import ppxf_util, miles_util
 
+.. _non-parametric:
 Non-parametric models
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -98,7 +104,7 @@ emission line templates shown above, we just need to do the following:
 
 Now, the `emission` object above can be called to produce a linear
 combination of all templates by providing a set of weights, given in the
-order indicated by the ``parnames``\ parameter, as indicated in the
+order indicated by the ``parnames`` parameter, as indicated in the
 example below.
 
 ::
@@ -131,14 +137,18 @@ the metallicity of a stellar population model that better describes some
 observations. The `NonParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed.NonParametricModel.html#paintbox.sed.NonParametricModel>`_ class above can be used for
 that purpose, of course, but the problem of determining the correct
 weights becomes more difficult as we include more templates. One
-alternative is thus tointerpolate the models such that we can have a SED
-description for any particular combination of parameters within a convex
-hull defined by the limits of the model. In this case, we can use the
-`ParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed.ParametricModel.html#paintbox.sed.ParametricModel>`_ class. In the example below, we use a set
+alternative is to restrict the model to a given number of spectra,
+for instance, assuming a single stellar population approximation,
+and then search for the best spectrum among the templates by
+changing the parameters that describe the models. This can be performed by
+interpolating the models according to their parameters, and it is the main
+usage of the `ParametricModel <https://paintbox.readthedocs
+.io/en/latest/api/paintbox.sed.ParametricModel.html#paintbox.sed
+.ParametricModel>`_ class.  In the example below, we use a set
 of theoretical stellar models from `Coelho
 (2014) <https://ui.adsabs.harvard.edu/abs/2014MNRAS.440.1027C/abstract>`__,
-which you can download `here <http://specmodels.iag.usp.br/>`__ to
-demonstrate how to use this class.
+(which you can download `here <http://specmodels.iag.usp.br/>`__) to
+demonstrate how to use this class to interpolate spectra in a stellar library.
 
 ::
 
@@ -207,4 +217,78 @@ more details.
 Polynomials
 ~~~~~~~~~~~
 
-TBW.
+Polynomials are often used to offset the models in match the
+observations. The\ ``paintbox`` uses Legendre polynomials, which can be
+used as indicated below.
+
+::
+
+    import numpy as np
+    import paintbox as pb
+    import matplotlib.pyplot as plt
+
+    wave = np.linspace(5000, 7000, 2000)
+    degree = 10
+    poly = pb.Polynomial(wave, degree)
+    print(f"Parameter names: {poly.parnames}")
+    theta = np.random.random(degree + 1)
+    fig = plt.figure(figsize=(8, 6))
+    plt.plot(wave,poly(theta))
+    plt.xlabel("$\lambda$ (Angstrom)")
+    plt.ylabel("Flux")
+    plt.savefig("polymial_example.png")
+    plt.show()
+
+
+.. parsed-literal::
+
+    Parameter names: ['p_0', 'p_1', 'p_2', 'p_3', 'p_4', 'p_5', 'p_6', 'p_7', 'p_8', 'p_9', 'p_10']
+
+
+
+.. image:: figures/polynomial_example.png
+
+
+Notice that the default behaviour of the ``Polynomial`` class includes
+the zero-order term, such that a polynomial of order *n* requires *n+1*
+parameters. The zero order polynomial can be suppressed using the option
+``zeroth=False``.
+
+Extinction laws
+~~~~~~~~~~~~~~~
+
+Currently, ``paintbox``\ supports two extinction laws, ``CCM89`` for the
+relation used by `Cardelli, Clayton and Mathis
+(1989) <https://ui.adsabs.harvard.edu/abs/1989ApJ...345..245C/abstract>`__
+for the Milky Way, and ``C2000`` proposed by
+[Calzetti]https://ui.adsabs.harvard.edu/abs/2000ApJ…533..682C/abstract).
+In both cases, ``paintbox``\ returns the attenuated flux according to a
+dust screen model,
+
+:math:`\frac{f_\lambda}{f_\lambda^0}= 10^{-0.4 A_V \left (1 + \kappa_\lambda / R_V\right )}`,
+
+where the free parameters are the total extinction :math:`A_V` and the
+total-to-selective extinction :math:`R_V`. These models can be used as
+follow:
+
+::
+
+    import numpy as np
+    import paintbox as pb
+    import matplotlib.pyplot as plt
+
+    wave = np.linspace(3000, 10000)
+    ccm89 = pb.CCM89(wave)
+    c2000 = pb.C2000(wave)
+    theta = np.array([0.1, 3.8])
+    fig = plt.figure(figsize=(8, 6))
+    plt.semilogx(wave, ccm89(theta), label="CCM89")
+    plt.semilogx(wave, c2000(theta), label="C2000")
+    plt.xlabel("$\lambda$ (Angstrom)")
+    plt.ylabel("$f_\lambda / f_\lambda^0$")
+    plt.legend()
+    plt.savefig("extlaws.png")
+
+
+
+.. image:: figures/extlaws.png
