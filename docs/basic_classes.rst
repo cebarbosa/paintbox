@@ -261,7 +261,8 @@ Currently, ``paintbox``\ supports two extinction laws, ``CCM89`` for the
 relation used by `Cardelli, Clayton and Mathis
 (1989) <https://ui.adsabs.harvard.edu/abs/1989ApJ...345..245C/abstract>`__
 for the Milky Way, and ``C2000`` proposed by
-`Calzetti <https://ui.adsabs.harvard.edu/abs/2000ApJ...533..682C/abstract>`__..
+`Calzetti et al. (2000) <https://ui.adsabs.harvard.edu/abs/2000ApJ...533.
+.682C/abstract>`__.
 In both cases, ``paintbox``\ returns the attenuated flux according to a
 dust screen model,
 
@@ -271,7 +272,7 @@ where the free parameters are the total extinction :math:`A_V` and the
 total-to-selective extinction :math:`R_V`. These models can be used as
 follow:
 
-.. code:: ipython3
+::
 
     import numpy as np
     import paintbox as pb
