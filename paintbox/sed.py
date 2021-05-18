@@ -13,7 +13,7 @@ from scipy.special import legendre
 
 from .operators import CompositeSED
 
-__all__ = ["ParametricModel", "NonParametricModel", "Polynomial", "NSSPs"]
+__all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
 
 class ParametricModel():
     """
