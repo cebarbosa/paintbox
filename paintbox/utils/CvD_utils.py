@@ -16,6 +16,8 @@ try:
 except:
     from disp2vel import disp2vel
 
+__all__ = ["CvD18"]
+
 class CvD18():
     """ Utility class for the use of CvD models.
 
@@ -23,12 +25,19 @@ class CvD18():
     the base SSP models and also response functions for several chemical
     elements.
 
+    Parameters
+    ----------
+    wave:
+
+    ssp_files:
+
+    rf_files:
+
+    sigma: float
     Attributes
     ----------
     parnames: list
         Name of the templates.
-    Parameters
-    ----------
 
 
 
