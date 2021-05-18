@@ -1,5 +1,7 @@
-The base paintbox classes
-==========================
+.. _Base classes:
+
+The base classes of paintbox
+============================
 
 The spectral energy distribution (SED) of galaxies can be decomposite
 into different parts, such as the light from the stars, the emission
@@ -137,11 +139,10 @@ the metallicity of a stellar population model that better describes some
 observations. The `NonParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed.NonParametricModel.html#paintbox.sed.NonParametricModel>`_ class above can be used for
 that purpose, of course, but the problem of determining the correct
 weights becomes more difficult as we include more templates. One
-alternative is to restrict the model to a given number of spectra,
-for instance, assuming a single stellar population approximation,
-and then search for the best spectrum among the templates by
-changing the parameters that describe the models. This can be performed by
-interpolating the models according to their parameters, and it is the main
+alternative is to restrict the model to a given (small) number of spectra,
+e.g., assuming a single stellar population approximation,
+and then search for a single spectrum that describe the observations. This can
+be performed by interpolating the models according to their parameters, and it is the main
 usage of the `ParametricModel <https://paintbox.readthedocs
 .io/en/latest/api/paintbox.sed.ParametricModel.html#paintbox.sed
 .ParametricModel>`_ class.  In the example below, we use a set
@@ -203,15 +204,16 @@ demonstrate how to use this class to interpolate spectra in a stellar library.
 
 The above code illustrates how to *prepare* the data for
 ``paintbox``\ ingestion for a particular case, but we notice that the
-`ParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed.ParametricModel.html#paintbox.sed.ParametricModel>`_ class require only three arguments, the wevelength
+`ParametricModel <https://paintbox.readthedocs.io/en/latest/api/paintbox.sed
+.ParametricModel.html#paintbox.sed.ParametricModel>`_ class require only three arguments, the wavelength
 array (one for each spectral element), an `astropy.table.Table <https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table>`_ object
 that contains the parameters of the model, and a 2D ``numpy.ndarray``
 with the correspondent models for each table row. There is no single
 standard of distribution for model files, and such preliminary
-preprocessing is often necessary. However, for a few popular stellar
-population models, there are utility classes distributed with
-``paintbox`` that already perform this task and provide production-ready
-classes. Please check the building_models tutorial and documentation for
+preprocessing requires some tweaking accordingly. For some stellar
+population models, including Miles and CvD models, `paintbox` provides
+additional utility classes that simplify this process further. Please
+check the building_models tutorial and documentation for
 more details.
 
 Polynomials
