@@ -13,7 +13,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.ndimage.filters import gaussian_filter1d
 
-__all__ == ["broad2lick", "broad2res"]
+__all__ = ["broad2lick", "broad2res"]
 
 def broad2lick(wl, intens, obsres, vel=0):
     """ Convolve spectra to match the Lick/IDS instrumental  resolution.
