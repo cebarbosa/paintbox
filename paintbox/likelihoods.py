@@ -9,8 +9,7 @@ import numpy as np
 from scipy.special import gamma, digamma
 
 
-__all__ = ["StudTLogLike", "StudT2LogLike", "NormalLogLike", "Normal2LogLike",
-           "JointLogLike"]
+__all__ = ["StudTLogLike", "StudT2LogLike", "NormalLogLike", "Normal2LogLike"]
 
 class LogLike:
     """
