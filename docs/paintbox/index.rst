@@ -12,7 +12,6 @@ Reference/API
 .. automodapi:: paintbox.operators
    :no-inheritance-diagram:
 
-.. autoclass:: paintbox.utils.CvD_utils.CvD18
+.. automodapi:: paintbox.utils.CvD_utils.CvD_utils
 
-.. autofunction:: paintbox.utils.utils.disp2vel
 
