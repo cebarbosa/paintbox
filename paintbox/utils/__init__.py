@@ -4,5 +4,11 @@
 # functions.
 from .disp2vel import disp2vel
 from .convolve import *
-from .CvD_utils import CvD18
+from .CvD_utils import *
 from .lick import *
+
+__all__ = []
+__all__ += disp2vel.__all__
+__all__ += convolve.__all__
+__all__ += CvD_utils.__all__
+__all__ += lick.__all__
