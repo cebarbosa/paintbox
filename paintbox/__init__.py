@@ -14,7 +14,13 @@ __all__ = []
 # __all__ += example_mod.__all__
 
 from .operators import *
+
 from .sed import *
 from .extlaws import *
 from .likelihoods import *
 from . import utils
+
+__all__ += sed.__all__
+__all__ += extlaws.__all__
+__all__ += likelihoods.__all__
+__all__ += utils.__all__
