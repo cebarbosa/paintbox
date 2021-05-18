@@ -24,8 +24,10 @@ Installation of ``paintbox`` is available with pip::
 
 Alternatively, it is also possible to install from the source from the  from project's `github page
 <https://github.com/cebarbosa/paintbox>`_. Installation requires `numpy <https://numpy.org/>`_, `scipy <https://www
-.scipy.org/>`_, `astropy <https://www.astropy.org/>`_, and `spectres
-<https://spectres.readthedocs.io/en/latest/>`_. The code has been developed
+.scipy.org/>`_, `astropy <https://www.astropy.org/>`_, `spectres
+<https://spectres.readthedocs.io/en/latest/>`_, and `tqdm <https://tqdm.github.io/>`_. The code has
+been
+developed
 in Python 3.7. The tutorials also require other packages including `ppxf
 <http://www-astro.physics.ox.ac.uk/~mxc/software/>`_, `matplotlib
 <https://matplotlib.org/>`_, and `emcee <https://emcee.readthedocs
