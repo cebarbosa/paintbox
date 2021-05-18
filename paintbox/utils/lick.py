@@ -14,6 +14,8 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 import astropy.units as u
 from astropy import constants
 
+__all__ = ["Lick"]
+
 class Lick():
     """ Class to measure Lick indices.
 
