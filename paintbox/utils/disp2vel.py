@@ -1,6 +1,7 @@
 import numpy as np
 import astropy.units as u
 
+__all__ = ["disp2vel"]
 
 def disp2vel(wrange, velscale):
     """ Returns a log-rebinned wavelength dispersion with constant velocity.
