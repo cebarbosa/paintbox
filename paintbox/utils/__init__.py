@@ -2,7 +2,7 @@
 
 # This sub-module is destined for common non-package specific utility
 # functions.
-from .disp2vel import disp2vel
+from .disp2vel import *
 from .convolve import *
 from .CvD_utils import *
 from .lick import *
