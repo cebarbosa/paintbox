@@ -1,5 +1,5 @@
-Building models with **paintbox**
----------------------------------
+Building models with `paintbox`
+-------------------------------
 
 In **paintbox**, the models used to describe the observed spectrum
 and/or spectral energy distribution of a galaxy are build from a
