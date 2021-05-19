@@ -1,5 +1,5 @@
-Preparing stellar population models
------------------------------------
+Stellar population models
+--------------------------
 
 Paintbox is particularly designed to model the observed spectrum, i.e.,
 the flux from stars as a function of the wavelength, of galaxies where
@@ -16,8 +16,8 @@ scientific requirements of the modeling as a way to minimize the (often
 expensive) number of computations depending on the resolution of the
 data.
 
-USING EMILES stellar populations templates
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+EMILES
+~~~~~~
 
 Stellar populations models from the MILES library can be obtained in a
 variety of ways in their
@@ -148,8 +148,8 @@ wavelength array. Notice that, in practice, if often necessary to
 degrade the model spectra to match the resolution of the observations,
 which can be performed with the task paintbox.utils.broad2res.
 
-Preparing CvD models
-~~~~~~~~~~~~~~~~~~~~
+CvD models
+~~~~~~~~~~
 
 Models from the `Conroy and van Dokkum
 (2012) <https://ui.adsabs.harvard.edu/abs/2012ApJ...747...69C/abstract>`__
