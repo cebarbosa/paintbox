@@ -12,7 +12,10 @@ from scipy.ndimage.filters import gaussian_filter1d
 from paintbox.sed import ParametricModel, CompositeSED
 from paintbox.operators import Constrain
 
-from disp2vel import disp2vel
+try:
+    from .disp2vel import disp2vel
+except:
+    from disp2vel import disp2vel
 
 __all__ = ["CvD18"]
 
