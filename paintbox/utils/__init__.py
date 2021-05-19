@@ -9,10 +9,17 @@ sys.path.append(str(package_root_directory))
 # functions.
 __all__ = []
 
-import disp2vel
-import convolve
-import lick
-import CvD_utils
+try:
+    import disp2vel
+    import convolve
+    import lick
+    import CvD_utils
+except:
+    import .disp2vel
+    import .convolve
+    import .lick
+    import .CvD_utils
+
 
 __all__ += disp2vel.__all__
 __all__ += convolve.__all__
