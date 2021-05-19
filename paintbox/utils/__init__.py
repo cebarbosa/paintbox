@@ -1,24 +1,16 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 import sys
-from pathlib import Path
-file = Path(__file__). resolve()
-package_root_directory = file.parents [1]
-sys.path.append(str(package_root_directory))
+sys.path.insert(0,'..')
+sys.path.insert(0,'.')
 
 # This sub-module is destined for common non-package specific utility
 # functions.
 __all__ = []
 
-try:
-    import disp2vel
-    import convolve
-    import lick
-    import CvD_utils
-except:
-    import .disp2vel
-    import .convolve
-    import .lick
-    import .CvD_utils
+import disp2vel
+import convolve
+import lick
+import CvD_utils
 
 
 __all__ += disp2vel.__all__
