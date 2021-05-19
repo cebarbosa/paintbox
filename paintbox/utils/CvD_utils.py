@@ -9,12 +9,10 @@ from astropy.io import fits
 from tqdm import tqdm
 from spectres import spectres
 from scipy.ndimage.filters import gaussian_filter1d
-from paintbox import ParametricModel, Constrain, CompositeSED
+from paintbox.sed import ParametricModel, CompositeSED
+from paintbox.operators import Constrain
 
-try:
-    from .disp2vel import disp2vel
-except:
-    from disp2vel import disp2vel
+from disp2vel import disp2vel
 
 __all__ = ["CvD18"]
 
@@ -291,3 +289,6 @@ class CvD18():
         rfs = dict([(e, np.array(rfsout[e])) for e in elements])
         rfpars = dict([(e, vstack(parsout[e])) for e in elements])
         return rfs, rfpars
+
+if __name__ == "__main__":
+    pass
