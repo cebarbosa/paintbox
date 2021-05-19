@@ -3,14 +3,16 @@
 # This sub-module is destined for common non-package specific utility
 # functions.
 __all__ = []
-
+#
 from .disp2vel import *
+from .disp2vel import __all__ as a
+__all__ += a
 from .convolve import *
+from .convolve import __all__ as a
+__all__ += a
 from .lick import *
-from .CvD_utils import CvD18
-
-
-# __all__ += disp2vel.__all__
-# __all__ += convolve.__all__
-# __all__ += lick.__all__
-# __all__ += CvD_utils.__all__
+from .lick import __all__ as a
+__all__ += a
+from .CvD_utils import *
+from .CvD_utils import __all__ as a
+__all__ += a
