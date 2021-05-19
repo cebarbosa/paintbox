@@ -38,7 +38,7 @@ User guide
 
 .. toctree:: basic_classes.rst
    :maxdepth: 2
-.. toctree:: preparing_models.rst
+.. toctree:: operations.rst
    :maxdepth: 2
 
 
