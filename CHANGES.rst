@@ -1,7 +1,9 @@
 1.2.1 (unreleased)
 ------------------
 
-- No changes yet.
+- Simplified interface for CvD models.
+- Fixed documentation in the readthedocs.
+- Included tutorial notebooks for more classes.
 
 1.2.0 (2020-05-12)
 ------------------
