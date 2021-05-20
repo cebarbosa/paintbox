@@ -4,7 +4,7 @@
 - Simplified interface for CvD models.
 - Fixed documentation in the readthedocs.
 - Included tutorial notebooks for more classes.
-- Fiixed bug reusing CvD models.
+- Fiixed bug reusing CvD models for disk.
 
 1.2.0 (2020-05-12)
 ------------------
