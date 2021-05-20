@@ -28,7 +28,6 @@ class CvD18():
     files can be reused for several files / runs if necessary it models are
     stored in disk.
 
-
     Parameters
     ----------
     wave: ndarray, astropy.units.Quantity
@@ -41,7 +40,8 @@ class CvD18():
         directory.
 
     sigma: float
-        Velocity dispersion of the output in km/s. Default is100 km/s.
+        Velocity dispersion of the output in km/s. Default is 100 km/s
+        (the minimum velocity dispersion allowed).
 
     store: bool
         Option to store processed models in disk. Default is True.
@@ -61,14 +61,6 @@ class CvD18():
     norm: bool
         Normalize the flux of the processed models to the median. Default is
         True.
-
-    Attributes
-    ----------
-    parnames: list
-        Name of the parameters in the model.
-
-
-
 
     """
     def __init__(self, wave, libpath=None, sigma=100, store=True, outdir=None,
@@ -102,8 +94,8 @@ class CvD18():
                 raise ValueError("Stellar populations not found in libpath.")
             self.templates, self.params = self._prepare_CvD18_ssps()
             if store:
-                self.write(self.wave, self.params, self.templates,
-                           self.ssp_file)
+                self._write(self.params, self.templates,
+                            self.ssp_file)
         else:
             self.params, self.templates = self._read(self.ssp_file)
         # Normalizing models if required
@@ -126,14 +118,14 @@ class CvD18():
         self.elements = ["C", "N", "Na", "Mg", "Si", "Ca", "Ti", "Fe", "K",
                          "Cr", "Mn", "Ba", "Ni", "Co", "Eu", "Sr", "V", "Cu",
                          "as/Fe"] if elements is None else elements
-        self.rf_outfiles = [    "{}_{}.fits".format(self.outprefix,
+        self.rf_outfiles = ["{}_{}.fits".format(self.outprefix,
                             el.replace("/", ":")) for
                             el in self._all_elements]
         if not all([os.path.exists(f) for f in self.rf_outfiles]):
             self.rfs, self.rfpars = self._prepare_CvD18_respfun()
             if self.store:
                 for element, fname in zip(self.elements, self.rf_outfiles):
-                    self.write(self.wave, self.rfpars[element], self.rfs[
+                    self._write(self.rfpars[element], self.rfs[
                                element], fname)
         else:
             self.rfs, self.rfpars = {}, {}
@@ -170,21 +162,7 @@ class CvD18():
         return CompositeSED(self, o, "*")
 
     def _prepare_CvD18_ssps(self):
-        """ Process SSP models.
-
-        Parameters
-        ----------
-        ssp_files: list
-            List containing the full path of SSP models to be processed.
-        wave: np.array or astropy.Quantity
-            Wavelength dispersion. Default units in Angstrom is assumed if
-            wavelength is provided as as numpy array.
-        output: str
-            Name of the output file (a multi-extension FITS file)
-        store: bool
-            Option to store
-
-        """
+        """ Process SSP models. """
         nimf = 16
         imfs = 0.5 + np.arange(nimf) / 5
         x2s, x1s=  np.stack(np.meshgrid(imfs, imfs)).reshape(2, -1)
@@ -217,7 +195,7 @@ class CvD18():
         params = vstack(params)
         return ssps, params
 
-    def write(self, wave, params, templates, output):
+    def _write(self, params, templates, output):
         """ Produces a MEF file for stellar populations and response
         functions. """
         hdu1 = fits.PrimaryHDU(templates)
@@ -226,7 +204,7 @@ class CvD18():
         hdu2 = fits.BinTableHDU(params)
         hdu2.header["EXTNAME"] = "PARAMS"
         # Making wavelength array
-        hdu3 = fits.BinTableHDU(Table([wave], names=["wave"]))
+        hdu3 = fits.BinTableHDU(Table([self.wave], names=["wave"]))
         hdu3.header["EXTNAME"] = "WAVE"
         hdulist = fits.HDUList([hdu1, hdu2, hdu3])
         hdulist.writeto(output, overwrite=True)
@@ -309,6 +287,3 @@ class CvD18():
     def parnames(self):
         """ Name of the parameters of the model. """
         return self._parnames
-
-if __name__ == "__main__":
-    pass
