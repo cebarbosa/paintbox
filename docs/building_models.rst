@@ -10,128 +10,47 @@ combined, are defined interactively. Below, we illustrate how to
 generate these spectral components in practice and how to combine them
 to make a model.
 
-Using CvD models
-~~~~~~~~~~~~~~~~
+Using CvD stellar population models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Here we use the CvD single stellar popupation models, and the response
-functions for several elements, prepared in this
-`tutorial <https://paintbox.readthedocs.io/en/latest/preparing_models.html#preparing-cvd-models>`__
-to illustrate how to create the basic elements for the stellar
-continuum.
+Models from the `Conroy and van Dokkum
+(2012) <https://ui.adsabs.harvard.edu/abs/2012ApJ...747...69C/abstract>`__
+and `Conroy et
+al. (2018) <https://ui.adsabs.harvard.edu/abs/2018ApJ...854..139C/abstract>`__,
+a.k.a. CvD models, can be obtained under request to the authors, and are
+**not** distributed together with ``paintbox``. Similar to the MILES
+models, CvD are also distributed as SSP models with varying ages,
+metallicities, and IMFs, but also provide response functions that allow
+the variation of several individual elements, e.g., C, N, O, Mg, Si, Ca,
+Ti, and Fe. In this cases, To handle these models, we use the utility
+class ``CvD18``, built from the basic ``paintbox`` classes, to handle
+the input files and produce spectra with any combination of parameters.
 
 ::
 
     import os
-    
+    import glob
+
     import numpy as np
-    from astropy.io import fits
-    from astropy.table import Table
+    from paintbox.utils import CvD18, disp2vel
     import matplotlib.pyplot as plt
-    
-    import paintbox as pb
 
-We first load the data from the CvD models, which are stored in a
-multi-extension FITS file, and we create an interpolate version of the
-SSP models.
-
-::
-
-    # Reading the content of the FITS file with SSP models
-    ssp_file = "templates/VCJ17_varydoublex.fits"
-    templates = fits.getdata(ssp_file, ext=0)
-    params = Table.read(ssp_file, hdu=1)
-    wave = Table.read(ssp_file, hdu=2)["wave"].data
-    # Use paintbox to create a component with interpolated SSP models
-    ssp = pb.ParametricModel(wave, params, templates)
-    # Name of the parameters are taken from the input table params
-    print("Parameter names: ", ssp.parnames)
-    # Model parameters 
-    p0 = np.array([0.1, 6, 2.3, 2.3])
-    print("Parameters for example: ", p0)
-    fig = plt.subplot(111)
-    plt.plot(wave, ssp(p0), "-")
-    plt.xlabel("Wavelength (Angstrom)")
-    plt.ylabel("Flux")
+    # Defining an arbitrary wavelength region in the near IR
+    w1, w2 = 8000, 13000 # Setting the wavelength window
+    sigma = 300 # Velocity dispersion of the output models
+    wave = disp2vel([w1, w2], sigma)
+    outdir = os.path.join(os.getcwd(), "CvD18_tutorials")
+    ssp = CvD18(wave, sigma=sigma, outdir=outdir)
 
 
 .. parsed-literal::
 
-    Parameter names:  ['Z', 'Age', 'x1', 'x2']
-    Parameters for example:  [0.1 6.  2.3 2.3]
+    Processing SSP files: 100%|██████████| 35/35 [01:01<00:00,  1.75s/it]
+    Preparing response functions: 100%|██████████| 25/25 [00:10<00:00,  2.30it/s]
 
 
-.. image:: figures/building_models_3_2.png
-
-
-The SSP models contain elemental abundances that have solar values, but
-this can be changed with the response functions for each element. In
-practice, what we have to do is to multiply the response function by the
-base models generated above. Below we illustrate how to modify the
-models to the response of sodium, iron, calcium and potassium.
-
-::
-
-    elements = ["Na", "Fe", "Ca", "K"] # 
-    for element in elements:
-        elem_file = "templates/C18_rfs_{}.fits".format(element)
-        rfdata = fits.getdata(elem_file, ext=0)
-        rfpar = Table.read(elem_file, hdu=1)
-        vmin, vmax = rfpar[element].min(), rfpar[element].max()
-        rf = pb.ParametricModel(wave, rfpar, rfdata)
-        ssp = ssp * rf
-
-In the example above, we are already combining different **paintbox**
-components, producing one that is a multiplication of a SSP with four
-different response functions. However, the response functions are also
-dependent on the ages and metallicities of the SSP models. Consequently,
-the parameter names get repetitive in this case:
-
-::
-
-    print("Parameter names: ", ssp.parnames)
-
-
-.. parsed-literal::
-
-    Parameter names:  ['Z', 'Age', 'x1', 'x2', 'Z', 'Age', 'Na', 'Z', 'Age', 'Fe', 'Z', 'Age', 'Ca', 'Z', 'Age', 'K']
-
-
-By default, **paintbox** just concatenate all the parameter names.
-However, in this application, we should use the same ages and
-metallicities in the model, which can be obtained by constraining the
-model as indicated below.
-
-::
-
-    ssp = pb.ConstrainModel(ssp)
-    print(ssp.parnames)
-
-
-.. parsed-literal::
-
-    ['Z', 'Age', 'x1', 'x2', 'Na', 'Fe', 'Ca', 'K']
-
-
-The ConstrainModel operator allows consistent calls to all parameters
-that are repeated.
-
-::
-
-    # Model parameters 
-    p1 = np.array([0.1, 6, 2.3, 2.3, 0.05, 0.05, 0.05, 0.05])
-    print("Parameters for non-solar abundances: ", p1)
-    fig = plt.subplot(111)
-    plt.plot(wave, ssp(p1), "-")
-    plt.xlabel("Wavelength (Angstrom)")
-    plt.ylabel("Flux")
-
-
-.. parsed-literal::
-
-    Parameters for non-solar abundances:  [0.1  6.   2.3  2.3  0.05 0.05 0.05 0.05]
-
-
-.. image:: figures/building_models_11_2.png
+Please check out the documentation for the ``CvD18`` class to set this
+class to work in your computer using the ``libpath`` keyword.
 
 
 
