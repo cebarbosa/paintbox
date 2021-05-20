@@ -75,6 +75,9 @@ class CvD18():
                              "km/s."
         self.sigma = sigma
         self.store = store
+        self.elements = ["C", "N", "Na", "Mg", "Si", "Ca", "Ti", "Fe", "K",
+                         "Cr", "Mn", "Ba", "Ni", "Co", "Eu", "Sr", "V", "Cu",
+                         "a/Fe"] if elements is None else elements
         # Defining output names
         wmin, wmax = int(self.wave.min()), int(self.wave.max())
         self.outdir = os.getcwd() if outdir is None else outdir
@@ -115,21 +118,20 @@ class CvD18():
         self._all_elements = ['Ba', 'C', 'Ca', 'Co', 'Cr', 'Cu', 'Eu', 'Fe',
                               'K', 'Mg', 'Mn', 'N', 'Na', 'Ni', 'Si', 'Sr',
                               'T', 'Ti', 'V', 'a/Fe', 'as/Fe']
-        self.elements = ["C", "N", "Na", "Mg", "Si", "Ca", "Ti", "Fe", "K",
-                         "Cr", "Mn", "Ba", "Ni", "Co", "Eu", "Sr", "V", "Cu",
-                         "as/Fe"] if elements is None else elements
         self.rf_outfiles = ["{}_{}.fits".format(self.outprefix,
                             el.replace("/", ":")) for
                             el in self._all_elements]
-        if not all([os.path.exists(f) for f in self.rf_outfiles]):
+        rfexist = all([os.path.exists(f) for f in self.rf_outfiles])
+        if not rfexist or not use_stored:
             self.rfs, self.rfpars = self._prepare_CvD18_respfun()
             if self.store:
-                for element, fname in zip(self.elements, self.rf_outfiles):
+                for element, fname in zip(self._all_elements,
+                                          self.rf_outfiles):
                     self._write(self.rfpars[element], self.rfs[
                                element], fname)
         else:
             self.rfs, self.rfpars = {}, {}
-            for element, fname in zip(self.elements, self.rf_outfiles):
+            for element, fname in zip(self._all_elements, self.rf_outfiles):
                 self.rfpars[element], self.rfs[element] = self._read(fname)
         # Build model with paintbox
         ssp = ParametricModel(self.wave, self.params, self.templates)
@@ -151,6 +153,7 @@ class CvD18():
         self._nparams = len(self.parnames)
 
     def __call__(self, theta):
+        """ Returns a model for a given set of parameters theta. """
         return self._interpolator(theta)
 
     def __add__(self, o):
@@ -216,7 +219,6 @@ class CvD18():
         templates = fits.getdata(filename)
         params = Table.read(filename, hdu=1)
         return params, templates
-
 
     def _prepare_CvD18_respfun(self):
         """ Prepare response functions from CvD models. """
