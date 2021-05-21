@@ -135,9 +135,11 @@ class CvD18():
                 self.rfpars[element], self.rfs[element] = self._read(fname)
         # Build model with paintbox
         ssp = ParametricModel(self.wave, self.params, self.templates)
+        self._response_functions = {}
         for element in self.elements:
             rf = ParametricModel(self.wave, self.rfpars[element], self.rfs[
                 element])
+            self.response_functions[element] = rf
             ssp = ssp * rf
             vmin = rf.params[element].data.min()
             vmax = rf.params[element].data.max()
@@ -289,3 +291,8 @@ class CvD18():
     def parnames(self):
         """ Name of the parameters of the model. """
         return self._parnames
+
+    @property
+    def response_functions(self):
+        """ Dictionary with all response functions in model. """
+        return self._response_functions
