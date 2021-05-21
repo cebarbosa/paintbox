@@ -4,7 +4,8 @@
 - Simplified interface for CvD models.
 - Fixed documentation in the readthedocs.
 - Included tutorial notebooks for more classes.
-- Fiixed bug reusing CvD models for disk.
+- Fixed bug reusing CvD models for disk.
+- Included access to individual response functions in CvD18 class.
 
 1.2.0 (2020-05-12)
 ------------------
