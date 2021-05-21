@@ -148,23 +148,21 @@ wavelength array. Notice that, in practice, if often necessary to
 degrade the model spectra to match the resolution of the observations,
 which can be performed with the task paintbox.utils.broad2res.
 
-CvD models
-~~~~~~~~~~
+Using CvD stellar population models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Models from the `Conroy and van Dokkum
 (2012) <https://ui.adsabs.harvard.edu/abs/2012ApJ...747...69C/abstract>`__
 and `Conroy et
 al. (2018) <https://ui.adsabs.harvard.edu/abs/2018ApJ...854..139C/abstract>`__,
-a.k.a. CvD models, can be obtained under request to the authors. Similar
-to the MILES models, CvD are also distributed as SSP models with varying
-ages, metallicities, and IMFs, but also provide response functions that
-allow the variation of several individual elements, e.g., C, N, O, Mg,
-Si, Ca, Ti, and Fe. Below we show how to handle these models using
-**paintbox** utilities. For this example, we use the SSP models computed
-with the `Extended IRTF Spectral
-Library <https://ui.adsabs.harvard.edu/abs/2017ApJS..230...23V/abstract>`__
-version 8, and the response functions from Conroy et al. (2018) version
-3.
+a.k.a. CvD models, can be obtained under request to the authors, and are
+**not** distributed together with ``paintbox``. Similar to the MILES
+models, CvD are also distributed as SSP models with varying ages,
+metallicities, and IMFs, but also provide response functions that allow
+the variation of several individual elements, e.g., C, N, O, Mg, Si, Ca,
+Ti, and Fe. In this cases, To handle these models, we use the utility
+class ``CvD18``, built from the basic ``paintbox`` classes, to handle
+the input files and produce spectra with any combination of parameters.
 
 ::
 
@@ -172,52 +170,101 @@ version 8, and the response functions from Conroy et al. (2018) version
     import glob
 
     import numpy as np
-    from paintbox.utils import CvD_utils
+    from paintbox.utils import CvD18, disp2vel
+    import matplotlib.pyplot as plt
 
-    base_dir = "/home/kadu/Dropbox/SSPs/CvD18"
-
-We first need to point out the location of the models in our computer.
-To make things simple, I store all SSP models from VCJ library in a
-subdirectory.
-
-::
-
-    ssps_dir = os.path.join(base_dir, "VCJ_v8")
-    ssp_files = glob.glob(os.path.join(ssps_dir, "VCJ*.s100"))
-
-To prepare the data to a convenient wavelength dispersion and to store
-the models in a single FITS file for later use, we use the
-paintbox.prepare_VCJ routine.
-
-::
-
-    # Defining an arbitrary wavelength region in the near IR
-    w1, w2 = 8000, 13000 # Setting the wavelength window
-    wave = np.arange(w1, w2)
-    output = os.path.join(os.getcwd(), "CvD18_varydoublex_test.fits")
-    CvD_utils.prepare_CvD18(ssp_files, wave, output)
-
-
-.. parsed-literal::
-
-    Processing SSP files: 100%|██████████| 35/35 [00:55<00:00,  1.58s/it]
-
-
-Similarly, we can prepare the response functions for the different
-elements which can be later used in the fitting process.
-
-::
-
-    # Preparing response functions
-    rfs_dir = os.path.join(base_dir, "RFN_v3")
-    rf_files = glob.glob(os.path.join(rfs_dir, "atlas_ssp*.s100"))
-    # Each element will be saved in a different file, thus we define a prefix for the RFs
-    outprefix = os.path.join(os.getcwd(), "C18_rfs")
-    CvD_utils.prepare_response_functions(rf_files, wave, outprefix)
+    # Defining an arbitrary wavelength region
+    w1, w2 = 5000, 9000 # Setting the wavelength window
+    sigma = 300 # Velocity dispersion of the output models
+    wave = disp2vel([w1, w2], sigma)
+    outdir = os.path.join(os.getcwd(), "CvD18_tutorials")
+    elements = ["Mg", "Na"] # Simple model with only two elements
+    ssp = CvD18(wave, sigma=sigma, outdir=outdir, elements=elements)
+    # Plotting n random models
+    fig = plt.figure(figsize=(8, 6))
+    n = 20
+    print("Model allowed ranges")
+    print(ssp.limits)
+    print("List of parameters of model")
+    print(ssp.parnames)
+    for i in range(n):
+        theta = np.array([np.random.uniform(ssp.limits[p][0], ssp.limits[p][1])
+                          for p in ssp.parnames])
+        v = ssp(theta)
+        plt.plot(wave, ssp(theta))
+    plt.xlabel("$\lambda$ (Angstrom)")
+    plt.ylabel("Normalized flux")
+    plt.savefig("../docs/figures/CvD_example.png")
+    plt.show()
 
 
 .. parsed-literal::
 
-    Preparing response functions: 100%|██████████| 25/25 [00:07<00:00,  3.26it/s]
+    Model allowed ranges
+    {'Z': (-1.5, 0.2), 'Age': (1.0, 13.0), 'x1': (0.5, 3.5), 'x2': (0.5, 3.5), 'Mg': (-0.3, 0.3), 'Na': (-0.3, 0.9)}
+    List of parameters of model
+    ['Z', 'Age', 'x1', 'x2', 'Mg', 'Na']
 
 
+
+.. image:: figures/CvD_example.png
+
+
+Please check out the documentation for the ``CvD18`` class to set this
+class to work in your computer using the ``libpath`` keyword.
+
+Visualizing response functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To ``CvD18`` class allows the access to all response functions used in
+an instance. Below we use the response function of iron, magnesium and
+titanium to reproduce figure 8 of `Conroy et
+al. (2018) <https://ui.adsabs.harvard.edu/abs/2018ApJ...854..139C/abstract>`__.
+
+::
+
+    import os
+
+    import numpy as np
+    import paintbox as pb
+    from paintbox.utils import disp2vel, CvD18
+    import matplotlib.pyplot as plt
+
+    wave = disp2vel([3800, 7000], 100)
+    sigma = 300 # Velocity dispersion of the output models
+    elements = ["Fe", "Mg", "Ti"]
+    outdir = os.path.join(os.getcwd(), "CvD18_tutorials")
+    ssp = CvD18(wave, sigma=sigma, outdir=outdir, elements=elements)
+    fig = plt.figure(figsize=(12, 8))
+    for i, element in enumerate(elements):
+        rf = ssp.response_functions[element]
+        # Upper panels with fixed metallicity
+        Z = 0.2
+        abund = rf.limits[element][1]
+        ages = [1, 5, 13]
+        ax = plt.subplot(2, len(elements), i+1)
+        for age in ages:
+            theta = np.array([Z, age, abund])
+            ax.plot(wave, (rf(theta) - 1) * 100, label=f"{theta}")
+            ax.legend(title=f"[Z, age, {element}]", prop={"size": 7})
+        ax.set_xlabel("$\lambda$ (Angstrom)")
+        ax.set_ylabel("ratio (\%)")
+        ax.text(0.12, 0.12, element, fontsize=16, transform=ax.transAxes)
+        # Lower panels with fixed age
+        age = 5
+        Zs = [-1.5, -1, -0.5, 0, 0.2]
+        ax = plt.subplot(2, len(elements), i+4)
+        for Z in Zs:
+            theta = np.array([Z, age, abund])
+            ax.plot(wave, (rf(theta) - 1) * 100, label=theta)
+        ax.set_xlabel("$\lambda$ (Angstrom)")
+        ax.set_ylabel("ratio (\%)")
+        ax.legend(title=f"[Z, age, {element}]", prop={"size": 7}, ncol=2)
+        ax.text(0.12, 0.12, element, fontsize=16, transform=ax.transAxes)
+    plt.tight_layout()
+    plt.savefig("../docs/figures/rfs_Fe_Mg_Ti.png")
+    plt.show()
+
+
+
+.. image:: figures/rfs_Fe_Mg_Ti.png
