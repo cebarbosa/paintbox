@@ -160,7 +160,7 @@ a.k.a. CvD models, can be obtained under request to the authors, and are
 models, CvD are also distributed as SSP models with varying ages,
 metallicities, and IMFs, but also provide response functions that allow
 the variation of several individual elements, e.g., C, N, O, Mg, Si, Ca,
-Ti, and Fe. In this cases, To handle these models, we use the utility
+Ti, and Fe. To handle these models, we use the utility
 class ``CvD18``, built from the basic ``paintbox`` classes, to handle
 the input files and produce spectra with any combination of parameters.
 
