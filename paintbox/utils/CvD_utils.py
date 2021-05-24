@@ -9,14 +9,14 @@ from astropy.io import fits
 from tqdm import tqdm
 from spectres import spectres
 from scipy.ndimage.filters import gaussian_filter1d
-from paintbox.sed import ParametricModel, CompositeSED
+from paintbox.sed import ParametricModel, CompositeSED, PaintboxBase
 from paintbox.operators import Constrain
 
 from .disp2vel import disp2vel
 
 __all__ = ["CvD18"]
 
-class CvD18():
+class CvD18(PaintboxBase):
     """ Utility class for the use of CvD models.
 
     This class provides a convenience `paintbox` interface to CvD models,
@@ -46,8 +46,10 @@ class CvD18():
     store: bool
         Option to store processed models in disk. Default is True.
 
-    outdir: str
-        Location where processed models are stored.
+    stored_dir: str
+        Location where processed models are stored for reuse. If models with
+        the same specifications are not found, models in the libpath are
+        processed for use instead.
 
     use_stored: bool
         Option to use stored models. Default is True.
@@ -63,8 +65,8 @@ class CvD18():
         True.
 
     """
-    def __init__(self, wave, libpath=None, sigma=100, store=True, outdir=None,
-                 use_stored=True, elements=None, norm=True):
+    def __init__(self, wave, libpath=None, sigma=100, store=True,
+                 stored_dir=None, use_stored=True, elements=None, norm=True):
         if hasattr(wave, "unit"):
             self.wave = wave.to(u.Angstrom).value
         else:
@@ -80,7 +82,7 @@ class CvD18():
                          "a/Fe"] if elements is None else elements
         # Defining output names
         wmin, wmax = int(self.wave.min()), int(self.wave.max())
-        self.outdir = os.getcwd() if outdir is None else outdir
+        self.outdir = os.getcwd() if stored_dir is None else stored_dir
         if not os.path.exists(self.outdir):
             os.mkdir(self.outdir)
         self.outprefix = os.path.join(self.outdir,
@@ -287,10 +289,6 @@ class CvD18():
         """ Lower and upper limits of the model parameters. """
         return self._limits
 
-    @property
-    def parnames(self):
-        """ Name of the parameters of the model. """
-        return self._parnames
 
     @property
     def response_functions(self):
