@@ -15,7 +15,31 @@ from .operators import CompositeSED
 
 __all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
 
-class ParametricModel():
+class PaintboxBase():
+
+    @property
+    def parnames(self):
+        """ List with names of the parameters of the model. """
+        return self._parnames
+
+    @parnames.setter
+    def parnames(self, newnames):
+        if not isinstance(newnames, list):
+            raise ValueError("Parnames should be set as a list.")
+        if not all([isinstance(_, str) for _ in newnames]):
+            raise ValueError("Parnames should be a list of strings.")
+        self._parnames = newnames
+
+    def __add__(self, o):
+        """ Addition between two SED components. """
+        return CompositeSED(self, o, "+")
+
+    def __mul__(self, o):
+        """  Multiplication between two SED components. """
+        return CompositeSED(self, o, "*")
+
+
+class ParametricModel(PaintboxBase):
     """
     Interpolation of SED model templates parametrically.
 
@@ -41,7 +65,7 @@ class ParametricModel():
         self.wave = wave
         self.params = params
         self.templates = templates
-        self.parnames = self.params.colnames.copy()
+        self._parnames = self.params.colnames.copy()
         self._n = len(wave)
         self._nparams = len(self.parnames)
         # Interpolating models
@@ -111,14 +135,7 @@ class ParametricModel():
         """  Multiplication between two SED components. """
         return CompositeSED(self, o, "*")
 
-    # @property
-    # def parnames(self):
-    #     """ List of parameter names. """
-    #     return self._parnames
-    #
-    # @parnames.setter
-    # def parnames(self, l):
-    #     self._parnamaes = l
+
 
     @property
     def limits(self):
@@ -166,7 +183,7 @@ class ParametricModel():
             grads[:,i,:] = g
         return grads
 
-class NonParametricModel():
+class NonParametricModel(PaintboxBase):
     """
     Weighted linear combination of SED models.
 
@@ -213,14 +230,6 @@ class NonParametricModel():
         """
         return np.dot(theta, self.templates)
 
-    def __add__(self, o):
-        """ Addition between two SED components. """
-        return CompositeSED(self, o, "+")
-
-    def __mul__(self, o):
-        """  Multiplication between two SED components. """
-        return CompositeSED(self, o, "*")
-
     def gradient(self, theta):
         """ Gradient of the dot product with weights theta.
 
@@ -230,7 +239,7 @@ class NonParametricModel():
         """
         return self.templates
 
-class Polynomial():
+class Polynomial(PaintboxBase):
     """
     Polynomial SED component.
 
@@ -276,20 +285,12 @@ class Polynomial():
         self.poly = np.zeros((len(orders), len(self._x)))
         for i, o in enumerate(orders):
             self.poly[i] = legendre(o)(self._x)
-        self.parnames = ["{}_{}".format(self.pname, o) for o in orders]
+        self._parnames = ["{}_{}".format(self.pname, o) for o in orders]
         self._nparams = len(self.parnames)
 
     def __call__(self, theta):
         """ Calculation of the polynomial with weights theta. """
         return np.dot(theta, self.poly)
-
-    def __add__(self, o):
-        """ Addition between two SED components. """
-        return CompositeSED(self, o, "+")
-
-    def __mul__(self, o):
-        """  Multiplication between two SED components. """
-        return CompositeSED(self, o, "*")
 
     def gradient(self, theta):
         """ Gradient of the polynomial with weights theta. """
@@ -331,11 +332,3 @@ class NSSPs():
             # dF / dSSPi
             grad[idx+1:idx+1+self.ncols] = p[0] * self.ssp.gradient(p[1:])
         return grad
-
-    def __add__(self, o):
-        """ Addition between two SED components. """
-        return CompositeSED(self, o, "+")
-
-    def __mul__(self, o):
-        """  Multiplication between two SED components. """
-        return CompositeSED(self, o, "*")
