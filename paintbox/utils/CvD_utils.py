@@ -9,7 +9,7 @@ from astropy.io import fits
 from tqdm import tqdm
 from spectres import spectres
 from scipy.ndimage.filters import gaussian_filter1d
-from paintbox.sed import ParametricModel, CompositeSED, PaintboxBase
+from paintbox.sed import ParametricModel, PaintboxBase
 from paintbox.operators import Constrain
 
 from .disp2vel import disp2vel
@@ -43,16 +43,10 @@ class CvD18(PaintboxBase):
         Velocity dispersion of the output in km/s. Default is 100 km/s
         (the minimum velocity dispersion allowed).
 
-    store: bool
-        Option to store processed models in disk. Default is True.
-
-    stored_dir: str
-        Location where processed models are stored for reuse. If models with
-        the same specifications are not found, models in the libpath are
-        processed for use instead.
-
-    use_stored: bool
-        Option to use stored models. Default is True.
+    store: str
+        Directory where processed models are stored for reuse. If models
+        are not found within store, models in the libpath are
+        processed for use, and stored in this directory.
 
     elements: list
         Chemical abundances to be included in the model. Available elements are
@@ -66,7 +60,7 @@ class CvD18(PaintboxBase):
 
     """
     def __init__(self, wave, libpath=None, sigma=100, store=True,
-                 stored_dir=None, use_stored=True, elements=None, norm=True):
+                 elements=None, norm=True):
         if hasattr(wave, "unit"):
             self.wave = wave.to(u.Angstrom).value
         else:
@@ -80,29 +74,25 @@ class CvD18(PaintboxBase):
         self.elements = ["C", "N", "Na", "Mg", "Si", "Ca", "Ti", "Fe", "K",
                          "Cr", "Mn", "Ba", "Ni", "Co", "Eu", "Sr", "V", "Cu",
                          "a/Fe"] if elements is None else elements
-        # Defining output names
-        wmin, wmax = int(self.wave.min()), int(self.wave.max())
-        self.outdir = os.getcwd() if stored_dir is None else stored_dir
-        if not os.path.exists(self.outdir):
-            os.mkdir(self.outdir)
-        self.outprefix = os.path.join(self.outdir,
-                         f"CvD18_sig{self.sigma}_w{wmin}-{wmax}")
-        #
-        ext_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0]
+        if (self.store is None) and (libpath is None):
+            raise ValueError("Either store of libpath keywords have to be "
+                             "specified.")
+        ext_path = os.path.split(os.path.dirname(
+            os.path.realpath(__file__)))[0]
         default_path = os.path.join(ext_path, "extern/CvD18")
         self.libpath = default_path if libpath is None else libpath
-        # Processing SSP files if necessary
-        self.ssp_file = f"{self.outprefix}_SSPs.fits"
-        if not os.path.exists(self.ssp_file) or not use_stored:
-            self.ssp_files = glob.glob(os.path.join(self.libpath, "VCJ*.s100"))
-            if len(self.ssp_files) == 0:
-                raise ValueError("Stellar populations not found in libpath.")
-            self.templates, self.params = self._prepare_CvD18_ssps()
-            if store:
+        if self.store is not None:
+            self.ssp_file = os.path.join(self.store, "CvD18_SSPs.fits")
+            if not os.path.exists(self.store):
+                os.mkdir(self.store)
+                self.templates, self.params = self._prepare_CvD18_ssps()
                 self._write(self.params, self.templates,
-                            self.ssp_file)
+                                self.ssp_file)
+            else:
+                self.params, self.templates = self._read(self.ssp_file)
         else:
-            self.params, self.templates = self._read(self.ssp_file)
+            print("Using models directly from library. ")
+            self.templates, self.params = self._prepare_CvD18_ssps()
         # Normalizing models if required
         self.norm = 1.
         if norm:
@@ -120,21 +110,24 @@ class CvD18(PaintboxBase):
         self._all_elements = ['Ba', 'C', 'Ca', 'Co', 'Cr', 'Cu', 'Eu', 'Fe',
                               'K', 'Mg', 'Mn', 'N', 'Na', 'Ni', 'Si', 'Sr',
                               'T', 'Ti', 'V', 'a/Fe', 'as/Fe']
-        self.rf_outfiles = ["{}_{}.fits".format(self.outprefix,
-                            el.replace("/", ":")) for
-                            el in self._all_elements]
-        rfexist = all([os.path.exists(f) for f in self.rf_outfiles])
-        if not rfexist or not use_stored:
-            self.rfs, self.rfpars = self._prepare_CvD18_respfun()
-            if self.store:
+        if self.store is not None:
+            self.rf_outfiles = [os.path.join(self.store,
+                                "CvD18_{}.fits".format(
+                                el.replace("/", ":"))) for
+                                el in self._all_elements]
+            rfexist = all([os.path.exists(f) for f in self.rf_outfiles])
+            if not rfexist:
+                self.rfs, self.rfpars = self._prepare_CvD18_respfun()
                 for element, fname in zip(self._all_elements,
                                           self.rf_outfiles):
                     self._write(self.rfpars[element], self.rfs[
                                element], fname)
+            else:
+                self.rfs, self.rfpars = {}, {}
+                for element, fname in zip(self._all_elements, self.rf_outfiles):
+                    self.rfpars[element], self.rfs[element] = self._read(fname)
         else:
-            self.rfs, self.rfpars = {}, {}
-            for element, fname in zip(self._all_elements, self.rf_outfiles):
-                self.rfpars[element], self.rfs[element] = self._read(fname)
+            self.rfs, self.rfpars = self._prepare_CvD18_respfun()
         # Build model with paintbox
         ssp = ParametricModel(self.wave, self.params, self.templates)
         self._response_functions = {}
@@ -160,23 +153,19 @@ class CvD18(PaintboxBase):
         """ Returns a model for a given set of parameters theta. """
         return self._interpolator(theta)
 
-    def __add__(self, o):
-        """ Addition between two SED components. """
-        return CompositeSED(self, o, "+")
-
-    def __mul__(self, o):
-        """  Multiplication between two SED components. """
-        return CompositeSED(self, o, "*")
-
     def _prepare_CvD18_ssps(self):
         """ Process SSP models. """
+        ssp_files = glob.glob(os.path.join(self.libpath, "VCJ*.s100"))
+        if len(ssp_files) == 0:
+            raise ValueError(f"Stellar populations not found in libpath: "
+                             f"{self.libpath}")
         nimf = 16
         imfs = 0.5 + np.arange(nimf) / 5
         x2s, x1s=  np.stack(np.meshgrid(imfs, imfs)).reshape(2, -1)
         velscale = int(self.sigma / 4)
         kernel_sigma = np.sqrt(self.sigma ** 2 - 100 ** 2) / velscale
         ssps, params = [], []
-        for fname in tqdm(self.ssp_files, desc="Processing SSP files"):
+        for fname in tqdm(ssp_files, desc="Processing SSP files"):
             spec = os.path.split(fname)[1]
             T = float(spec.split("_")[3][1:])
             Z = float(spec.split("_")[4][1:-8].replace("p", "+").replace(
