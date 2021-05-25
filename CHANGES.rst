@@ -1,4 +1,4 @@
-1.2.1 (unreleased)
+1.2.1 (2020-05-25)
 ------------------
 
 - Simplified interface for CvD models.
