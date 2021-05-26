@@ -8,11 +8,11 @@ from __future__ import print_function, division
 import numpy as np
 import astropy.units as u
 
-from .operators import CompositeSED
+from .sed import PaintboxBase
 
 __all__ = ["CCM89", "C2000"]
 
-class CCM89():
+class CCM89(PaintboxBase):
     r""" Cardelli, Clayton and Mathis (1989) extinction law.
 
     The extinction laws are calculated using a dust screen model, returning
@@ -107,14 +107,6 @@ class CCM89():
         """
         return np.power(10, -0.4 * theta[0] * (self._a + self._b / theta[1]))
 
-    def __add__(self, o):
-        """ Addition between two SED components. """
-        return CompositeSED(self, o, "+")
-
-    def __mul__(self, o):
-        """  Multiplication between two SED components. """
-        return CompositeSED(self, o, "*")
-
     def gradient(self, theta):
         """ Gradient of the extinction law.
 
@@ -130,7 +122,7 @@ class CCM89():
                   np.power(theta[1], -2) * A
         return grad
 
-class C2000():
+class C2000(PaintboxBase):
     r""" Calzetti et al. (2000) extinction law.
 
     The extinction laws are calculated using a dust screen model, returning
@@ -176,14 +168,6 @@ class C2000():
             Array with values of Av and Rv.
         """
         return np.power(10, -0.4 * theta[0] * (1. + self._kappa / theta[1]))
-
-    def __add__(self, o):
-        """ Addition between two SED components. """
-        return CompositeSED(self, o, "+")
-
-    def __mul__(self, o):
-        """  Multiplication between two SED components. """
-        return CompositeSED(self, o, "*")
 
     def gradient(self, theta):
         """ Gradient of the extinction law.
