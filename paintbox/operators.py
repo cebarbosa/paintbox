@@ -10,9 +10,11 @@ import astropy.constants as const
 from scipy.ndimage import convolve1d
 from spectres import spectres
 
-__all__ = ["LOSVDConv", "Resample", "CompositeSED", "Constrain"]
+from .sed import PaintboxBase
 
-class LOSVDConv():
+__all__ = ["LOSVDConv", "Resample", "Constrain", "FixParams"]
+
+class LOSVDConv(PaintboxBase):
     """ Convolution of a SED model with the LOS Velocity Distribution.
 
     This class allows the convolution of a SED model with the line--of-sight
@@ -88,15 +90,7 @@ class LOSVDConv():
         grad[-1] = convolve1d(model, (y * y - 1.) * k / p2[1])
         return grad
 
-    def __add__(self, o):
-        """ Addition of this output model with other SED components. """
-        return CompositeSED(self, o, "+")
-
-    def __mul__(self, o):
-        """ Multiplication of this output model with other SED components. """
-        return CompositeSED(self, o, "*")
-
-class Resample():
+class Resample(PaintboxBase):
     """ Resampling of SED model to a new wavelength dispersion.
 
     The resample can be performed to arbitrary dispersions based on the
@@ -136,83 +130,7 @@ class Resample():
         grads = spectres(self.wave, self._inwave, grads, fill=0, verbose=False)
         return grads
 
-    def __add__(self, o):
-        """ Addition of this model with other SED models. """
-        return CompositeSED(self, o, "+")
-
-    def __mul__(self, o):
-        """ Multiplication of this model with other SED models. """
-        return CompositeSED(self, o, "*")
-    
-class CompositeSED():
-    """
-    Combination of SED models.
-
-    The CompositeSED class allows the combination of any number of SED model
-    components using addition and / or multiplication, as long as the input
-    classes have the same wavelength dispersion.
-
-    Attributes
-    ----------
-    parnames: list
-        The new parnames list is a concatenation of the input SED models.
-    wave: numpy.ndarray, astropy.quantities.Quantity
-        Wavelength array.
-    """
-    def __init__(self, o1, o2, op):
-        """
-        Parameters
-        ----------
-        o1, o2: SED model components
-            Input SED models to be combined either by multiplication or
-            addition.
-        op: str
-            Operation of the combination, either "+" or "*".
-        """
-        msg = "Components with different wavelenghts cannot be combined!"
-        assert np.all(o1.wave == o2.wave), msg
-        self.__op = op
-        msg = "Operations allowed in combination of SED components are + and *."
-        assert self.__op in ["+", "*"], msg
-        self.o1 = o1
-        self.o2 = o2
-        self.wave = self.o1.wave
-        self.parnames = self.o1.parnames + self.o2.parnames
-        self._nparams = len(self.parnames)
-        self._grad_shape = (self._nparams, len(self.wave))
-
-    def __call__(self, theta):
-        """ SED model for combined components at point theta. """
-        theta1 = theta[:self.o1._nparams]
-        theta2 = theta[self.o1._nparams:]
-        if self.__op == "+":
-            return self.o1(theta1) + self.o2(theta2)
-        elif self.__op == "*":
-            return self.o1(theta1) * self.o2(theta2)
-    
-    def gradient(self, theta):
-        """ Gradient of the combined SED model at point theta. """
-        n = self.o1._nparams
-        theta1 = theta[:n]
-        theta2 = theta[n:]
-        grad = np.zeros(self._grad_shape)
-        if self.__op == "+":
-            grad[:n] = self.o1.gradient(theta1)
-            grad[n:] = self.o2.gradient(theta2)
-        elif self.__op == "*":
-            grad[:n] = self.o1.gradient(theta1) * self.o2(theta2)
-            grad[n:] = self.o2.gradient(theta2) * self.o1(theta1)
-        return np.squeeze(grad)
-
-    def __add__(self, o):
-        """ Addition of SED components. """
-        return CompositeSED(self, o, "+")
-
-    def __mul__(self, o):
-        """ Multiplication of SED components. """
-        return CompositeSED(self, o, "*")
-
-class Constrain():
+class Constrain(PaintboxBase):
     """ Constrain parameters of an SED model.
 
     The combination of SED models may result in models with repeated
@@ -240,21 +158,48 @@ class Constrain():
 
         """
         self.sed = sed
-        self.parnames = list(dict.fromkeys(sed.parnames))
+        self._parnames = list(dict.fromkeys(sed.parnames))
         self.wave = self.sed.wave
-        self._nparams = len(self.parnames)
+        self._nparams = len(self._parnames)
         self._ntot = len(self.sed.parnames)
         self._idxs = {}
-        for param in self.parnames:
+        for param in self._parnames:
             self._idxs[param] = np.where( \
                                 np.array(self.sed.parnames) == param)[0]
 
     def __call__(self, theta):
         """ Calculates the constrained model. """
         t = np.zeros(self._ntot)
-        for param, val in zip(self.parnames, theta.T):
+        for param, val in zip(self._parnames, theta):
             t[self._idxs[param]] = val
         return self.sed(t)
 
     def gradient(self, theta):
         raise NotImplementedError
+
+class FixParams(PaintboxBase):
+    def __init__(self, sed, fixed_vals):
+        """ Fix parameters of SED model. """
+        self.sed = sed
+        self.wave = self.sed.wave
+        self.fixed_vals = fixed_vals
+        self._parnames = [_ for _ in sed.parnames if _ not in fixed_vals]
+        self._free_idxs = {}
+        self._ntot = len(self.sed.parnames)
+        for param in self._parnames:
+            self._free_idxs[param] = np.where( \
+                                np.array(self.sed.parnames) == param)[0]
+        self._fixed_idxs = {}
+        for param, val in self.fixed_vals.items():
+            self._fixed_idxs[param] = np.where(
+                                      np.array(self.sed.parnames) == param)[0]
+
+    def __call__(self, theta):
+        """ Calculates the constrained model. """
+        t = np.zeros(self._ntot)
+        for param, val in zip(self.parnames, theta):
+            t[self._free_idxs[param]] = val
+        for param, val in self.fixed_vals.items():
+            idx = self._fixed_idxs[param]
+            t[idx] = val
+        return self.sed(t)

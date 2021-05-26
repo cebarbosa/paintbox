@@ -11,9 +11,8 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from scipy.special import legendre
 
-from .operators import CompositeSED
-
-__all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
+__all__ = ["ParametricModel", "NonParametricModel", "Polynomial",
+           "CompositeSED"]
 
 class PaintboxBase():
 
@@ -36,6 +35,76 @@ class PaintboxBase():
 
     def __mul__(self, o):
         """  Multiplication between two SED components. """
+        return CompositeSED(self, o, "*")
+
+
+class CompositeSED():
+    """
+    Combination of SED models.
+
+    The CompositeSED class allows the combination of any number of SED model
+    components using addition and / or multiplication, as long as the input
+    classes have the same wavelength dispersion.
+
+    Attributes
+    ----------
+    parnames: list
+        The new parnames list is a concatenation of the input SED models.
+    wave: numpy.ndarray, astropy.quantities.Quantity
+        Wavelength array.
+    """
+
+    def __init__(self, o1, o2, op):
+        """
+        Parameters
+        ----------
+        o1, o2: SED model components
+            Input SED models to be combined either by multiplication or
+            addition.
+        op: str
+            Operation of the combination, either "+" or "*".
+        """
+        msg = "Components with different wavelenghts cannot be combined!"
+        assert np.all(o1.wave == o2.wave), msg
+        self.__op = op
+        msg = "Operations allowed in combination of SED components are + and *."
+        assert self.__op in ["+", "*"], msg
+        self.o1 = o1
+        self.o2 = o2
+        self.wave = self.o1.wave
+        self.parnames = self.o1.parnames + self.o2.parnames
+        self._nparams = len(self.parnames)
+        self._grad_shape = (self._nparams, len(self.wave))
+
+    def __call__(self, theta):
+        """ SED model for combined components at point theta. """
+        theta1 = theta[:self.o1._nparams]
+        theta2 = theta[self.o1._nparams:]
+        if self.__op == "+":
+            return self.o1(theta1) + self.o2(theta2)
+        elif self.__op == "*":
+            return self.o1(theta1) * self.o2(theta2)
+
+    def gradient(self, theta):
+        """ Gradient of the combined SED model at point theta. """
+        n = self.o1._nparams
+        theta1 = theta[:n]
+        theta2 = theta[n:]
+        grad = np.zeros(self._grad_shape)
+        if self.__op == "+":
+            grad[:n] = self.o1.gradient(theta1)
+            grad[n:] = self.o2.gradient(theta2)
+        elif self.__op == "*":
+            grad[:n] = self.o1.gradient(theta1) * self.o2(theta2)
+            grad[n:] = self.o2.gradient(theta2) * self.o1(theta1)
+        return np.squeeze(grad)
+
+    def __add__(self, o):
+        """ Addition of SED components. """
+        return CompositeSED(self, o, "+")
+
+    def __mul__(self, o):
+        """ Multiplication of SED components. """
         return CompositeSED(self, o, "*")
 
 
