@@ -4,31 +4,36 @@ Paintbox documentation
 Overview
 --------
 
-``Paintbox`` is a parametric modeling and fitting toolbox designed for the
-modeling of the spectral energy distribution (SED) of astronomical
-observations including spectroscopy, photometry and any combination of those.
-The ``paintbox`` is designed to allow easy
+The ``paintbox`` package provides a flexible modeling toolbox for spectroscopic
+and SED fitting of astronomical observations. The ``paintbox`` is designed to allow easy
 construction of very general models by the combination of a few basic
 classes of objects that compose the spectral features, such as stellar
 populations, emission lines, extinction laws, etc, with a high degree of
-customization. The ``paintbox`` is a open-source project, and contributions to improve/ extend
-its capabilities are welcome.
+customization.  This is a an open-source project, and contributions to
+improve/ extend its capabilities are welcome! If you are using the code and /
+or plans to contribute, please let me know by email at <mailto:kadu
+.barbosa@gmail.com>. Please, also follow the code to keep tunned on new
+features, bug fixes and other info at `www.github.com/cebarbosa/paintbox>`_.
 
 Installation
 ------------
 
-Installation of ``paintbox`` is available with pip::
+To obtain the most recent version of ``paintbox``, we recommend the
+installation from the source code::
+
+    git clone https://github.com/cebarbosa/paintbox.git
+    cd paintbox
+    python setup.py install
+
+Alternatively, installation of ``paintbox`` is available with pip::
 
     pip install paintbox
 
 
-Alternatively, it is also possible to install from the source from the  from project's `github page
-<https://github.com/cebarbosa/paintbox>`_. Installation requires `numpy <https://numpy.org/>`_, `scipy <https://www
+Installation requires `numpy <https://numpy.org/>`_, `scipy <https://www
 .scipy.org/>`_, `astropy <https://www.astropy.org/>`_, `spectres
 <https://spectres.readthedocs.io/en/latest/>`_, and `tqdm <https://tqdm.github.io/>`_. The code has
-been
-developed
-in Python 3.7. The tutorials also require other packages including `ppxf
+been developed in Python 3.7. The tutorials also require other packages including `ppxf
 <http://www-astro.physics.ox.ac.uk/~mxc/software/>`_, `matplotlib
 <https://matplotlib.org/>`_, and `emcee <https://emcee.readthedocs
 .io/en/stable/>`_.
