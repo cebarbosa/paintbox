@@ -65,7 +65,7 @@ class CompositeSED():
             Operation of the combination, either "+" or "*".
         """
         msg = "Components with different wavelenghts cannot be combined!"
-        assert np.allclose(o1.wave == o2.wave), msg
+        assert np.allclose(o1.wave, o2.wave), msg
         self.__op = op
         msg = "Operations allowed in combination of SED components are + and *."
         assert self.__op in ["+", "*"], msg
