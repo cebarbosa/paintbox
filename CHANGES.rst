@@ -1,4 +1,4 @@
-1.3.0 (unreleased)
+1.3.0 (2020-06-11)
 ------------------
 - New operator to fix values in model.
 - Changed behavior of mask in likelihoods to be according to conventions.
