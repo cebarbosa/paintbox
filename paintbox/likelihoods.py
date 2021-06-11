@@ -23,9 +23,8 @@ class LogLike:
         Uncertainties in the observed SED fitting to be used in the
         weighting of the log-likelihood.
     mask: numpy.ndarray, optional
-        Boolean mask for the observed data. The mask uses the Python
-        convention, such that False indicate points to be masked,
-        and True indicate the points to be used.
+        Mask for observed data, with zeros (ones) indicating non-masked (
+        masked) wavelengths.
 
     Attributes
     ----------
@@ -37,10 +36,12 @@ class LogLike:
     def __init__(self, observed, model, obserr=None, mask=None):
         self.observed = observed
         self.model = model
+        self.wave = self.model.wave
         self.obserr = np.ones_like(self.observed) if obserr is None else obserr
-        self.mask = np.full(len(self.observed), True) if mask is None \
-                    else mask
-        self._N = len(self.mask)
+        self.mask = mask if mask is not None else np.zeros(self._N)
+        self._bmask = np.where(self.mask == 0, True, False)
+        self._N = len(self.wave[self._bmask])
+        self._pmask = np.where(self._bmask, 1, np.nan) # Plot mask
         self.parnames = self.model.parnames.copy()
         self._nparams = len(self.parnames)
 
@@ -74,8 +75,8 @@ class NormalLogLike(LogLike):
 
     def __call__(self, theta):
         """ Calculation of the log-likelihood. """
-        e_i = (self.model(theta) - self.observed)[self.mask]
-        yerr = self.obserr[self.mask]
+        e_i = (self.model(theta) - self.observed)[self._bmask]
+        yerr = self.obserr[self._bmask]
         LLF = - 0.5 * self._N * np.log(2 * np.pi) + \
               - 0.5 * np.sum(np.power(e_i / yerr, 2)) \
               - 0.5 * np.sum(np.log(yerr ** 2))
@@ -83,9 +84,9 @@ class NormalLogLike(LogLike):
 
     def gradient(self, theta):
         """ Gradient of the log-likelihood. """
-        e_i = (self.model(theta) - self.observed)[self.mask]
-        yerr = self.obserr[self.mask]
-        g = self.model.gradient(theta)[:, self.mask]
+        e_i = (self.model(theta) - self.observed)[self._bmask]
+        yerr = self.obserr[self._bmask]
+        g = self.model.gradient(theta)[:, self._bmask]
         grad = - np.sum((e_i / np.power(yerr, 2.))[np.newaxis, :] * g,
                         axis=1)
         return grad
@@ -127,19 +128,19 @@ class Normal2LogLike(LogLike):
         model = self.model(theta[:-1])
         if np.all(model) == 0:
             return -np.infty
-        e_i = (model - self.observed)[self.mask]
+        e_i = (model - self.observed)[self._bmask]
         S = theta[-1]
         LLF = - 0.5 * self._N * np.log(2 * np.pi) + \
-              - 0.5 * np.sum(np.power(e_i / (S * self.obserr[self.mask]), 2)) \
-              - 0.5 * np.sum(np.log((S * self.obserr[self.mask]) ** 2))
+              - 0.5 * np.sum(np.power(e_i / (S * self.obserr[self._bmask]), 2)) \
+              - 0.5 * np.sum(np.log((S * self.obserr[self._bmask]) ** 2))
         return float(LLF)
 
     def gradient(self, theta):
-        e_i = (self.model(theta[:-1]) - self.observed)[self.mask]
+        e_i = (self.model(theta[:-1]) - self.observed)[self._bmask]
         S = theta[-1]
-        A = (e_i / np.power(S * self.obserr, 2.))[self.mask]
-        B = self.model.gradient(theta[:-1])[self.mask]
-        C = -np.sum(A[np.newaxis,:] * B, axis=1)[self.mask]
+        A = (e_i / np.power(S * self.obserr, 2.))[self._bmask]
+        B = self.model.gradient(theta[:-1])[self._bmask]
+        C = -np.sum(A[np.newaxis,:] * B, axis=1)[self._bmask]
         grad = np.zeros(len(theta))
         grad[:-1] = C
         grad[-1] = - self._N / S + \
@@ -179,8 +180,8 @@ class StudTLogLike(LogLike):
 
     def __call__(self, theta):
         nu = theta[-1]
-        e_i = self.model(theta[:-1])[self.mask] - self.observed[self.mask]
-        x = 1. + np.power(e_i / self.obserr[self.mask], 2.) / (nu - 2)
+        e_i = self.model(theta[:-1])[self._bmask] - self.observed[self._bmask]
+        x = 1. + np.power(e_i / self.obserr[self._bmask], 2.) / (nu - 2)
         LLF = self._N * np.log(gamma(0.5 * (nu + 1)) /
                                np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu)) \
               - 0.5 * (nu + 1) * np.sum(np.log(x)) \
@@ -191,12 +192,12 @@ class StudTLogLike(LogLike):
         grad = np.zeros(self.model._nparams + 1)
         nu = theta[-1]
         # d loglike / d theta
-        e_i = self.model(theta[:-1])[self.mask] - self.observed[self.mask]
-        x = np.power(e_i / self.obserr[self.mask], 2.) / (nu - 2.)
+        e_i = self.model(theta[:-1])[self._bmask] - self.observed[self._bmask]
+        x = np.power(e_i / self.obserr[self._bmask], 2.) / (nu - 2.)
         term1 = 1 / (1 + x)
-        term2 = 2 * e_i / (self.obserr[self.mask] ** 2) / (nu - 2)
+        term2 = 2 * e_i / (self.obserr[self._bmask] ** 2) / (nu - 2)
         term12 = term1 * term2
-        sspgrad = self.model.gradient(theta[:-1])[:, self.mask]
+        sspgrad = self.model.gradient(theta[:-1])[:, self._bmask]
         grad[:-1] = -0.5 * (nu + 1) * np.sum(term12[np.newaxis, :] *
                                              sspgrad, axis=1)
         # d loglike / d nu
@@ -246,12 +247,12 @@ class StudT2LogLike(LogLike):
 
     def __call__(self, theta):
         S, nu = theta[-2:]
-        e_i = self.model(theta[:-2])[self.mask] - self.observed[self.mask]
-        x = 1. + np.power(e_i / S / self.obserr[self.mask], 2.) / (nu - 2)
+        e_i = self.model(theta[:-2])[self._bmask] - self.observed[self._bmask]
+        x = 1. + np.power(e_i / S / self.obserr[self._bmask], 2.) / (nu - 2)
         LLF = self._N * np.log(gamma(0.5 * (nu + 1)) /
                                np.sqrt(np.pi * (nu - 2)) / gamma(0.5 * nu)) \
               - 0.5 * (nu + 1) * np.sum(np.log(x)) \
-              - 0.5 * np.sum(np.log((S * self.obserr[self.mask]) ** 2))
+              - 0.5 * np.sum(np.log((S * self.obserr[self._bmask]) ** 2))
         return float(LLF)
 
     def gradient(self, theta):
