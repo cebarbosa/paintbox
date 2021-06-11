@@ -16,6 +16,8 @@ from .disp2vel import disp2vel
 
 __all__ = ["CvD18"]
 
+np.seterr(divide='ignore', invalid='ignore')
+
 class CvD18(PaintboxBase):
     """ Utility class for the use of CvD models.
 
@@ -31,13 +33,10 @@ class CvD18(PaintboxBase):
     Parameters
     ----------
     wave: ndarray, astropy.units.Quantity
-        Wavelenght array of the model.
+        Wavelength array of the model.
 
     libpath: str
-        Path to the locations where CvD18 models are stored. By default, it
-        looks for files inside paintbox/paintbox/extern/CvD18. Both SSP and
-        response function files are assumed to be uncompressed inside this
-        directory.
+        Path to the locations where CvD18 models are stored.
 
     sigma: float
         Velocity dispersion of the output in km/s. Default is 100 km/s
@@ -59,77 +58,51 @@ class CvD18(PaintboxBase):
         True.
 
     """
-    def __init__(self, wave, libpath=None, sigma=100, store=True,
+    def __init__(self, wave=None, libpath=None, sigma=100, store=None,
                  elements=None, norm=True):
-        if hasattr(wave, "unit"):
-            self.wave = wave.to(u.Angstrom).value
-        else:
-            self.wave = wave #Assumes units are Angstrom
-        assert wave.min() >= 3501, "Minimum wavelength is 3501 Angstrom"
-        assert wave.max() <= 25000, "Maximum wavelength is 25000 Angstrom"
-        assert sigma >= 100, "Minumum velocity dispersion for models is 100 " \
-                             "km/s."
         self.sigma = sigma
         self.store = store
         self.elements = ["C", "N", "Na", "Mg", "Si", "Ca", "Ti", "Fe", "K",
                          "Cr", "Mn", "Ba", "Ni", "Co", "Eu", "Sr", "V", "Cu",
                          "a/Fe"] if elements is None else elements
-        if (self.store is None) and (libpath is None):
-            raise ValueError("Either store of libpath keywords have to be "
-                             "specified.")
-        ext_path = os.path.split(os.path.dirname(
-            os.path.realpath(__file__)))[0]
-        default_path = os.path.join(ext_path, "extern/CvD18")
-        self.libpath = default_path if libpath is None else libpath
-        if self.store is not None:
-            self.ssp_file = os.path.join(self.store, "CvD18_SSPs.fits")
-            if not os.path.exists(self.store):
-                os.mkdir(self.store)
-                self.templates, self.params = self._prepare_CvD18_ssps()
-                self._write(self.params, self.templates,
-                                self.ssp_file)
-            else:
-                self.params, self.templates = self._read(self.ssp_file)
-        else:
-            print("Using models directly from library. ")
-            self.templates, self.params = self._prepare_CvD18_ssps()
-        # Normalizing models if required
-        self.norm = 1.
-        if norm:
-            self.norm = np.median(self.templates, axis=1)
-            self.templates /= self.norm[:, np.newaxis]
-        # Setting limits of the models
-        self._limits = {}
-        for param in self.params.colnames:
-            vmin = self.params[param].data.min()
-            vmax = self.params[param].data.max()
-            self._limits[param] = (vmin, vmax)
-        # Processing response functions
-        self.rf_infiles = glob.glob(os.path.join(self.libpath,
-                                                 "atlas_ssp*.s100"))
+        self.libpath = libpath
         self._all_elements = ['Ba', 'C', 'Ca', 'Co', 'Cr', 'Cu', 'Eu', 'Fe',
                               'K', 'Mg', 'Mn', 'N', 'Na', 'Ni', 'Si', 'Sr',
                               'T', 'Ti', 'V', 'a/Fe', 'as/Fe']
-        if self.store is not None:
-            self.rf_outfiles = [os.path.join(self.store,
-                                "CvD18_{}.fits".format(
-                                el.replace("/", ":"))) for
-                                el in self._all_elements]
-            rfexist = all([os.path.exists(f) for f in self.rf_outfiles])
-            if not rfexist:
-                self.rfs, self.rfpars = self._prepare_CvD18_respfun()
-                for element, fname in zip(self._all_elements,
-                                          self.rf_outfiles):
-                    self._write(self.rfpars[element], self.rfs[
-                               element], fname)
-            else:
-                self.rfs, self.rfpars = {}, {}
-                for element, fname in zip(self._all_elements, self.rf_outfiles):
-                    self.rfpars[element], self.rfs[element] = self._read(fname)
+        self.norm = norm
+        if os.path.isfile(self.store):
+            self.load_templates()
         else:
-            self.rfs, self.rfpars = self._prepare_CvD18_respfun()
-        # Build model with paintbox
+            self.set_wave(wave)
+            self.process_ssps()
+            self.process_respfun()
+            if self.store is not None:
+                self.save_templates()
+        self.build_model()
+
+    def set_wave(self, wave):
+        if wave is None:
+            ssp_files = glob.glob(os.path.join(self.libpath, "VCJ*.s100"))
+            wave = np.loadtxt(ssp_files[0], usecols=(0,))
+        if hasattr(wave, "unit"):
+            self.wave = wave.to(u.Angstrom).value
+        else:
+            self.wave = wave #Assumes units are Angstrom
+        assert self.wave.min() >= 3501, "Minimum wavelength is 3501 Angstrom"
+        assert self.wave.max() <= 25000, "Maximum wavelength is 25000 Angstrom"
+        assert self.sigma >= 100, "Minumum velocity dispersion for models is " \
+                                   "100 km/s."
+        return
+
+    def build_model(self):
+        """ Build model with paintbox SED methods. """
         ssp = ParametricModel(self.wave, self.params, self.templates)
+        self._limits = {}
+        for p in self.params.colnames:
+            vmin = self.params[p].data.min()
+            vmax = self.params[p].data.max()
+            self._limits[p] = (vmin, vmax)
+
         self._response_functions = {}
         for element in self.elements:
             rf = ParametricModel(self.wave, self.rfpars[element], self.rfs[
@@ -153,7 +126,7 @@ class CvD18(PaintboxBase):
         """ Returns a model for a given set of parameters theta. """
         return self._interpolator(theta)
 
-    def _prepare_CvD18_ssps(self):
+    def process_ssps(self):
         """ Process SSP models. """
         ssp_files = glob.glob(os.path.join(self.libpath, "VCJ*.s100"))
         if len(ssp_files) == 0:
@@ -179,42 +152,25 @@ class CvD18(PaintboxBase):
                 wvel = disp2vel(w, velscale)
             ssp = data[:, 1:].T
             if self.sigma <= 100:
-                newssp = spectres(self.wave, w, ssp)
+                newssp = spectres(self.wave, w, ssp, fill=0, verbose=False)
             else:
-                ssp_rebin = spectres(wvel, w, ssp)
+                ssp_rebin = spectres(wvel, w, ssp, fill=0, verbose=False)
                 ssp_broad = gaussian_filter1d(ssp_rebin, kernel_sigma,
                                               mode="constant", cval=0.0)
-                newssp = spectres(self.wave, wvel, ssp_broad)
+                newssp = spectres(self.wave, wvel, ssp_broad, fill=0,
+                                  verbose=False)
 
             ssps.append(newssp)
-        ssps = np.vstack(ssps)
-        params = vstack(params)
-        return ssps, params
-
-    def _write(self, params, templates, output):
-        """ Produces a MEF file for stellar populations and response
-        functions. """
-        hdu1 = fits.PrimaryHDU(templates)
-        hdu1.header["EXTNAME"] = "TEMPLATES"
-        params = Table(params)
-        hdu2 = fits.BinTableHDU(params)
-        hdu2.header["EXTNAME"] = "PARAMS"
-        # Making wavelength array
-        hdu3 = fits.BinTableHDU(Table([self.wave], names=["wave"]))
-        hdu3.header["EXTNAME"] = "WAVE"
-        hdulist = fits.HDUList([hdu1, hdu2, hdu3])
-        hdulist.writeto(output, overwrite=True)
+        self.params = vstack(params)
+        self.templates = np.vstack(ssps)
+        self.fluxnorm = np.median(self.templates, axis=1) if self.norm else 1.
+        self.templates /= self.fluxnorm[:, np.newaxis]
         return
 
-    def _read(self, filename):
-        """ Read the MEF file with stellar populations and response
-        functions. """
-        templates = fits.getdata(filename)
-        params = Table.read(filename, hdu=1)
-        return params, templates
-
-    def _prepare_CvD18_respfun(self):
+    def process_respfun(self):
         """ Prepare response functions from CvD models. """
+        self.rf_infiles = glob.glob(os.path.join(self.libpath,
+                                                     "atlas_ssp*.s100"))
         # Read one spectrum to get name of columns
         with open(self.rf_infiles[0]) as f:
             header = f.readline().replace("#", "")
@@ -243,13 +199,13 @@ class CvD18(PaintboxBase):
             data = data.T
             if self.sigma > 100:
                 wvel = disp2vel(w, velscale)
-                rebin = spectres(wvel, w, data)
+                rebin = spectres(wvel, w, data, fill=0, verbose=False)
                 broad = gaussian_filter1d(rebin, kernel_sigma,
                                           mode="constant", cval=0.0)
-                data = spectres(self.wave, wvel, broad).T
+                data = spectres(self.wave, wvel, broad, fill=0, verbose=False).T
 
             else:
-                data = spectres(self.wave, w, data).T
+                data = spectres(self.wave, w, data, fill=0, verbose=False).T
             fsun = data[:, 1]
             for element in elements:
                 # Adding solar response
@@ -269,9 +225,47 @@ class CvD18(PaintboxBase):
                         parsout[element].append(t)
                         rf = data[:, i] / fsun
                         rfsout[element].append(rf)
-        rfs = dict([(e, np.array(rfsout[e])) for e in elements])
-        rfpars = dict([(e, vstack(parsout[e])) for e in elements])
-        return rfs, rfpars
+        self.rfs = dict([(e, np.array(rfsout[e])) for e in elements])
+        self.rfpars = dict([(e, vstack(parsout[e])) for e in elements])
+        return
+
+    def save_templates(self):
+        hdu0 = fits.PrimaryHDU()
+        hdu1 = fits.BinTableHDU(Table([self.wave], names=["wave"]))
+        hdu1.header["EXTNAME"] = "WAVE"
+        hdu2 = fits.ImageHDU(self.templates * self.fluxnorm[:, None])
+        hdu2.header["EXTNAME"] = "DATA.SSPS"
+        params = Table(self.params)
+        hdu3 = fits.BinTableHDU(params)
+        hdu3.header["EXTNAME"] = "PARS.SSPS"
+        hdulist = fits.HDUList([hdu0, hdu1, hdu2, hdu3])
+        for element in self._all_elements:
+            hdudata = fits.ImageHDU(self.rfs[element])
+            hdudata.header["EXTNAME"] = f"DATA.{element}"
+            hdulist.append(hdudata)
+            hdutable = fits.BinTableHDU(self.rfpars[element])
+            hdutable.header["EXTNAME"] = f"PARS.{element}"
+            hdulist.append(hdutable)
+        hdulist.writeto(self.store, overwrite=True)
+
+    def load_templates(self):
+        hdulist = fits.open(self.store)
+        nhdus = len(hdulist)
+        hdunum = np.arange(1, nhdus)
+        hdunames = [hdulist[i].header["EXTNAME"] for i in hdunum]
+        hdudict = dict(zip(hdunames, hdunum))
+        self.wave = Table.read(self.store, hdu=hdudict["WAVE"])["wave"].data
+        self.params = Table.read(self.store, hdu=hdudict["PARS.SSPS"])
+        self.templates = hdulist[hdudict["DATA.SSPS"]].data
+
+        self.rfs = {}
+        self.rfpars = {}
+        for e in self._all_elements:
+            self.rfs[e] = hdulist[hdudict[f"DATA.{e}"]].data
+            self.rfpars[e] = Table.read(self.store, hdu=hdudict[f"PARS.{e}"])
+        self.fluxnorm = np.median(self.templates, axis=1) if self.norm else 1.
+        self.templates /= self.fluxnorm[:, np.newaxis]
+        return
 
     @property
     def limits(self):
