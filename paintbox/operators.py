@@ -54,7 +54,7 @@ class LOSVDConv(PaintboxBase):
         assert np.all(np.isclose(velscale, velscale[0])), msg
         self.velscale = velscale[0]
         self._v = self.velscale.value
-        self.losvdpars = ["V", "sigma"] if losvdpars is None else losvdpars
+        self.losvdpars = ["Vsyst", "sigma"] if losvdpars is None else losvdpars
         self.parnames = obj.parnames + self.losvdpars
         self._nparams = len(self.parnames)
         self._shape = (self._nparams, len(self.wave))
