@@ -94,7 +94,7 @@ def broad2res(w, flux, obsres, outres, fluxerr=None):
     dw = np.median(dws)
     assert np.all(np.isclose(dws, dw)), \
         "Wavelength dispersion has to be constant!"
-    sigma_diff = np.sqrt(outres ** 2 - obsres ** 2) / 2.3548 / dw
+    sigma_diff = np.sqrt(outres ** 2 - obsres ** 2) / 2.634 / dw
     diag = np.diag(flux)
     for j in range(len(w)):
         diag[j] = gaussian_filter1d(diag[j], sigma_diff[j], mode="constant",
