@@ -17,8 +17,11 @@ from .operators import *
 from .sed import *
 from .extlaws import *
 from .likelihoods import *
+from .version import *
+
 
 __all__ += sed.__all__
 __all__ += extlaws.__all__
 __all__ += operators.__all__
 __all__ += likelihoods.__all__
+__version__ = version
