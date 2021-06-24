@@ -10,9 +10,10 @@ from __future__ import print_function, division
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from scipy.special import legendre
+import matplotlib.pyplot as plt
 
 __all__ = ["ParametricModel", "NonParametricModel", "Polynomial",
-           "CompositeSED"]
+           "_CompositeSED"]
 
 class PaintboxBase():
 
@@ -29,18 +30,35 @@ class PaintboxBase():
             raise ValueError("Parnames should be a list of strings.")
         self._parnames = newnames
 
+    def gradient(self, theta):
+        raise NotImplementedError("Gradients not implemented for this class.")
+
+    def __call__(self, theta):
+        raise NotImplementedError("Call not implemented for this class.")
+
     def __add__(self, o):
         """ Addition between two SED components. """
-        return CompositeSED(self, o, "+")
+        return _CompositeSED(self, o, "+")
 
     def __mul__(self, o):
         """  Multiplication between two SED components. """
-        return CompositeSED(self, o, "*")
+        return _CompositeSED(self, o, "*")
 
+    def fix(self, fixed_vals):
+        """ Fix a set of parameters in parnames using a dictionary. """
+        return _FixSEDPars(self, fixed_vals)
 
-class CompositeSED():
-    """
-    Combination of SED models.
+    def constrain_duplicates(self):
+        return _ConstrainDuplicates(self)
+
+    def plot(self, theta, ax=None, plottype=None, **kwargs):
+        ax = plt.gca() if ax is None else ax
+        plottype = "plot" if plottype is None else plottype
+        plotter = getattr(ax, plottype)
+        plotter(self.wave, self(theta), **kwargs)
+
+class _CompositeSED(PaintboxBase):
+    """ Combination of SED models.
 
     The CompositeSED class allows the combination of any number of SED model
     components using addition and / or multiplication, as long as the input
@@ -76,6 +94,7 @@ class CompositeSED():
         self._nparams = len(self.parnames)
         self._grad_shape = (self._nparams, len(self.wave))
 
+
     def __call__(self, theta):
         """ SED model for combined components at point theta. """
         theta1 = theta[:self.o1._nparams]
@@ -99,13 +118,72 @@ class CompositeSED():
             grad[n:] = self.o2.gradient(theta2) * self.o1(theta1)
         return np.squeeze(grad)
 
-    def __add__(self, o):
-        """ Addition of SED components. """
-        return CompositeSED(self, o, "+")
+class _FixSEDPars(PaintboxBase):
+    def __init__(self, sed, fixed_vals):
+        """ Fix parameters of SED model. """
+        self.sed = sed
+        self.wave = self.sed.wave
+        self.fixed_vals = fixed_vals
+        self._parnames = [_ for _ in sed.parnames if _ not in fixed_vals]
+        self._free_idxs = {}
+        self._ntot = len(self.sed.parnames)
+        for param in self._parnames:
+            self._free_idxs[param] = np.where( \
+                                np.array(self.sed.parnames) == param)[0]
+        self._fixed_idxs = {}
+        for param, val in self.fixed_vals.items():
+            self._fixed_idxs[param] = np.where(
+                                      np.array(self.sed.parnames) == param)[0]
 
-    def __mul__(self, o):
-        """ Multiplication of SED components. """
-        return CompositeSED(self, o, "*")
+    def __call__(self, theta):
+        """ Calculates the constrained model. """
+        t = np.zeros(self._ntot)
+        for param, val in zip(self.parnames, theta):
+            t[self._free_idxs[param]] = val
+        for param, val in self.fixed_vals.items():
+            idx = self._fixed_idxs[param]
+            t[idx] = val
+        return self.sed(t)
+
+class _ConstrainDuplicates(PaintboxBase):
+    """ Constrain parameters of an SED model.
+
+    The combination of SED models may result in models with repeated
+    parameters at different locations of the parnames list. This class allows
+    the simplification of the input model by finding and constraining all
+    instances of repeated parameters to the same value.
+
+    Attributes
+    ----------
+    parnames: list
+        The new parnames list is a concatenation of the input SED models,
+        simplified in relation to the input model.
+    wave: numpy.ndarray, astropy.quantities.Quantity
+        Wavelength array.
+
+    Methods
+    -------
+    __call__(theta)
+        Returns the SED model according the parameters given in theta.
+
+    """
+    def __init__(self, sed):
+        self.sed = sed
+        self._parnames = list(dict.fromkeys(sed.parnames))
+        self.wave = self.sed.wave
+        self._nparams = len(self._parnames)
+        self._ntot = len(self.sed.parnames)
+        self._idxs = {}
+        for param in self._parnames:
+            self._idxs[param] = np.where( \
+                                np.array(self.sed.parnames) == param)[0]
+
+    def __call__(self, theta):
+        """ Calculates the constrained model. """
+        t = np.zeros(self._ntot)
+        for param, val in zip(self._parnames, theta):
+            t[self._idxs[param]] = val
+        return self.sed(t)
 
 
 class ParametricModel(PaintboxBase):
@@ -198,13 +276,11 @@ class ParametricModel(PaintboxBase):
 
     def __add__(self, o):
         """ Addition between two SED components. """
-        return CompositeSED(self, o, "+")
+        return _CompositeSED(self, o, "+")
 
     def __mul__(self, o):
         """  Multiplication between two SED components. """
-        return CompositeSED(self, o, "*")
-
-
+        return _CompositeSED(self, o, "*")
 
     @property
     def limits(self):
@@ -323,26 +399,15 @@ class Polynomial(PaintboxBase):
         Order of the Legendre polynomial.
     poly: 2D ndarray
         Static Legendre polynomials array used in the calculations.
-    parnames: list
-        List with the name of the individual polynomials, set to
-        [p0, p1, ..., pdegree] at initialization.
+    pname: str (optional)
+        Name of the polynomial to be used in parnames.
+    zeroth: bool (optional)
+        Controls used of zeroth order polynomial. Default is True (zero
+        order is used).
 
     """
 
     def __init__(self, wave, degree, pname=None, zeroth=True):
-        """
-        Parameters
-        ----------
-        wave: ndarray, Quantity
-            Wavelength array of the polynomials
-        degree: int
-            Order of the Legendre polynomial
-        pname: str (optional)
-            Name of the polynomial to be used in parnames.
-        zeroth: bool (optional)
-            Controls used of zeroth order polynomial. Default is True (zero
-            order is used).
-        """
         self.wave = wave
         self.degree = degree
         self._x = 2 * ((self.wave - self.wave.min()) /
