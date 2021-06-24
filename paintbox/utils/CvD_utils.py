@@ -10,9 +10,8 @@ from tqdm import tqdm
 from spectres import spectres
 from scipy.ndimage.filters import gaussian_filter1d
 from paintbox.sed import ParametricModel, PaintboxBase
-from paintbox.operators import Constrain
 
-from .disp2vel import disp2vel
+from .dispersion_constant_velscale import disp2vel
 
 __all__ = ["CvD18"]
 
@@ -118,7 +117,7 @@ class CvD18(PaintboxBase):
                 vmin = rf.params[p].data.min()
                 vmax = rf.params[p].data.max()
                 self._limits[p] = (vmin, vmax)
-        self._interpolator = Constrain(ssp)
+        self._interpolator = ssp.constrain_duplicates()
         self._parnames = self._interpolator.parnames
         self._nparams = len(self.parnames)
 
