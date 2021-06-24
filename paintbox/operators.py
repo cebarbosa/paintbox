@@ -12,7 +12,7 @@ from spectres import spectres
 
 from .sed import PaintboxBase
 
-__all__ = ["LOSVDConv", "Resample", "Constrain", "FixParams"]
+__all__ = ["LOSVDConv", "Resample"]
 
 class LOSVDConv(PaintboxBase):
     """ Convolution of a SED model with the LOS Velocity Distribution.
@@ -129,77 +129,3 @@ class Resample(PaintboxBase):
         grads = self.obj.gradient(theta)
         grads = spectres(self.wave, self._inwave, grads, fill=0, verbose=False)
         return grads
-
-class Constrain(PaintboxBase):
-    """ Constrain parameters of an SED model.
-
-    The combination of SED models may result in models with repeated
-    parameters at different locations of the parnames list. This class allows
-    the simplification of the input model by finding and constraining all
-    instances of repeated parameters to the same value.
-
-    Attributes
-    ----------
-    parnames: list
-        The new parnames list is a concatenation of the input SED models,
-        simplified in relation to the input model.
-    wave: numpy.ndarray, astropy.quantities.Quantity
-        Wavelength array.
-
-    Methods
-    -------
-    __call__(theta)
-        Returns the SED model according the parameters given in theta.
-
-    """
-    def __init__(self, sed):
-        """
-
-
-        """
-        self.sed = sed
-        self._parnames = list(dict.fromkeys(sed.parnames))
-        self.wave = self.sed.wave
-        self._nparams = len(self._parnames)
-        self._ntot = len(self.sed.parnames)
-        self._idxs = {}
-        for param in self._parnames:
-            self._idxs[param] = np.where( \
-                                np.array(self.sed.parnames) == param)[0]
-
-    def __call__(self, theta):
-        """ Calculates the constrained model. """
-        t = np.zeros(self._ntot)
-        for param, val in zip(self._parnames, theta):
-            t[self._idxs[param]] = val
-        return self.sed(t)
-
-    def gradient(self, theta):
-        raise NotImplementedError
-
-class FixParams(PaintboxBase):
-    def __init__(self, sed, fixed_vals):
-        """ Fix parameters of SED model. """
-        self.sed = sed
-        self.wave = self.sed.wave
-        self.fixed_vals = fixed_vals
-        self._parnames = [_ for _ in sed.parnames if _ not in fixed_vals]
-        self._free_idxs = {}
-        self._ntot = len(self.sed.parnames)
-        for param in self._parnames:
-            self._free_idxs[param] = np.where( \
-                                np.array(self.sed.parnames) == param)[0]
-        self._fixed_idxs = {}
-        for param, val in self.fixed_vals.items():
-            self._fixed_idxs[param] = np.where(
-                                      np.array(self.sed.parnames) == param)[0]
-
-    def __call__(self, theta):
-        """ Calculates the constrained model. """
-        t = np.zeros(self._ntot)
-        for param, val in zip(self.parnames, theta):
-            t[self._free_idxs[param]] = val
-        for param, val in self.fixed_vals.items():
-            idx = self._fixed_idxs[param]
-            t[idx] = val
-        return self.sed(t)
