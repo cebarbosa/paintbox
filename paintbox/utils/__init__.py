@@ -4,8 +4,8 @@
 # functions.
 __all__ = []
 #
-from .disp2vel import *
-from .disp2vel import __all__ as a
+from .dispersion_constant_velscale import *
+from .dispersion_constant_velscale import __all__ as a
 __all__ += a
 from .convolve import *
 from .convolve import __all__ as a
