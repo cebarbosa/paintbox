@@ -1,4 +1,3 @@
-""" Calculates the M/L for CvD models. """
 import os
 import glob
 
