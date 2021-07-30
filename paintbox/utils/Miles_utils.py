@@ -8,9 +8,9 @@ from astropy.io import fits
 from tqdm import tqdm
 from spectres import spectres
 from scipy.ndimage.filters import gaussian_filter1d
-from paintbox import ParametricModel, Constrain, CompositeSED
+from paintbox.sed import ParametricModel, PaintboxBase
 
-try:
-    from .disp2vel import disp2vel
-except:
-    from disp2vel import disp2vel
+from .dispersion_constant_velscale import dispersion_const_velscale
+
+class EMILES(PaintboxBase):
+
