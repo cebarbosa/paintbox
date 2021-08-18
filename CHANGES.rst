@@ -1,7 +1,9 @@
-1.4 (unreleased)
+1.4 (2021-08--18)
 ----------------
 - Added method to fix parameters in paintbox models directly.
 - Added method to constrain duplicated parameters in paintbox models.
+- Refactored code for dispersion with constant velocity scale from disp2vel
+to logspace_dispersion.
 
 
 1.3.1 (2021-06-18)
