@@ -2,7 +2,9 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as const
 
-__all__ = ["disp2vel", "dispersion_const_velscale"]
+from ..version import version
+
+__all__ = ["disp2vel", "logspace_dispersion"]
 
 def disp2vel(wrange, velscale):
     """ Returns a log-rebinned wavelength dispersion with constant velocity.
@@ -34,7 +36,7 @@ def disp2vel(wrange, velscale):
     w = wrange[0] * np.exp(v / c)
     return w * wunits
 
-def dispersion_const_velscale(interval, velscale, vunit=None):
+def logspace_dispersion(interval, velscale, vunit=None):
     """ Returns a wavelength dispersion array with constant velocity scale .
 
     This code is an adaptation of pPXF's log_rebin routine, simplified to
@@ -60,7 +62,7 @@ def dispersion_const_velscale(interval, velscale, vunit=None):
 
     """
     vunit = u.km / u.s if vunit is None else vunit
-    c = const.c.to(vunit)
+    c = const.c.to(vunit).value
     if isinstance(interval, list):
         interval = np.array(interval)
     wunits = interval.unit if hasattr(interval, "unit") else 1

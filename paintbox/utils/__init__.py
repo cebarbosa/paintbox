@@ -4,15 +4,22 @@
 # functions.
 __all__ = []
 #
-from .dispersion_constant_velscale import *
-from .dispersion_constant_velscale import __all__ as a
+from .logspace_dispersion import *
+from .logspace_dispersion import __all__ as a
 __all__ += a
+
 from .convolve import *
 from .convolve import __all__ as a
 __all__ += a
+
 from .lick import *
 from .lick import __all__ as a
 __all__ += a
+
 from .CvD_utils import *
 from .CvD_utils import __all__ as a
+__all__ += a
+
+from .Miles_utils import *
+from .Miles_utils import __all__ as a
 __all__ += a

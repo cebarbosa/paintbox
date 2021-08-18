@@ -10,7 +10,7 @@ from spectres import spectres
 from scipy.ndimage.filters import gaussian_filter1d
 from paintbox.sed import ParametricModel, PaintboxBase
 
-from .dispersion_constant_velscale import disp2vel
+from .logspace_dispersion import disp2vel
 
 __all__ = ["CvD18"]
 

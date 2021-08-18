@@ -1,7 +1,8 @@
 1.4 (unreleased)
 ----------------
-- Added method to fix parameters in models.
-- Added method to constrain duplicated parameters to the same value.
+- Added method to fix parameters in paintbox models directly.
+- Added method to constrain duplicated parameters in paintbox models.
+
 
 1.3.1 (2021-06-18)
 ------------------
