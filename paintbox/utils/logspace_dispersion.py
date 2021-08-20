@@ -56,9 +56,10 @@ def logspace_dispersion(interval, velscale, vunit=None):
         Units of the velocity scale. Defaults to km/s.
 
     Returns
+    -------
+
     np.array
         Wavelength array in interval [w1, w2),
-    -------
 
     """
     vunit = u.km / u.s if vunit is None else vunit
