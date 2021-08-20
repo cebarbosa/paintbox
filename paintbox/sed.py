@@ -206,8 +206,7 @@ class ParametricModel(PaintboxBase):
         The SED templates with dimensions (len(params), len(wave))
 
     """
-    __doc__ += PaintboxBase.__doc__
-    
+
     def __init__(self, wave, params, templates):
         """ """
         self.wave = wave
