@@ -4,8 +4,4 @@ Reference/API
    :no-inheritance-diagram:
    :inherited-members:
 
-.. automodapi:: paintbox.utils
-   :no-inheritance-diagram:
-   :inherited-members:
-
 
