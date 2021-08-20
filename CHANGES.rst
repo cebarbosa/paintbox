@@ -1,3 +1,8 @@
+1.5 (2021-08-20)
+----------------
+- Refactored code, including previous utils module as part of the main
+package.
+
 1.4 (2021-08--18)
 ----------------
 - Added method to fix parameters in paintbox models directly.
