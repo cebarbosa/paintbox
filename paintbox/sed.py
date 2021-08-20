@@ -7,6 +7,8 @@ based on precomputed templates and polynomials.
 """
 from __future__ import print_function, division
 
+import abc
+
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from scipy.special import legendre
@@ -15,7 +17,15 @@ import matplotlib.pyplot as plt
 __all__ = ["ParametricModel", "NonParametricModel", "Polynomial",
            "CompoundSED"]
 
-class PaintboxBase():
+class SuperclassMeta(type):
+    def __new__(mcls, classname, bases, cls_dict):
+        cls = super().__new__(mcls, classname, bases, cls_dict)
+        for name, member in cls_dict.items():
+            if not getattr(member, '__doc__'):
+                member.__doc__ = getattr(bases[-1], name).__doc__
+        return cls
+
+class PaintboxBase(object, metaclass=SuperclassMeta):
 
     @property
     def parnames(self):
@@ -44,10 +54,12 @@ class PaintboxBase():
         """  Multiplication between two SED components. """
         return CompoundSED(self, o, "*")
 
+    @abc.abstractmethod
     def fix(self, fixed_vals):
         """ Fix a set of parameters in parnames using a dictionary. """
         return _FixSEDPars(self, fixed_vals)
 
+    @abc.abstractmethod
     def constrain_duplicates(self):
         return _ConstrainDuplicates(self)
 
