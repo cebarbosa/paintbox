@@ -49,9 +49,12 @@ class PaintboxBase():
         return _FixSEDPars(self, fixed_vals)
 
     def constrain_duplicates(self):
+        """ Constrain the parameters with the same name to have the same
+        value during calling. """
         return _ConstrainDuplicates(self)
 
     def plot(self, theta, ax=None, plottype=None, **kwargs):
+        """ Plot the model for a given set of parameters. """
         ax = plt.gca() if ax is None else ax
         plottype = "plot" if plottype is None else plottype
         plotter = getattr(ax, plottype)
