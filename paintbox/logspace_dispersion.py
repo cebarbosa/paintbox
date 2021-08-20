@@ -2,8 +2,6 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as const
 
-from ..version import version
-
 __all__ = ["disp2vel", "logspace_dispersion"]
 
 def disp2vel(wrange, velscale):

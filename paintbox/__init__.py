@@ -1,27 +1,20 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+from __future__ import absolute_import
 
-# Packages may add whatever they like to this file, but
-# should keep this content at the top.
-# ----------------------------------------------------------------------------
-from ._astropy_init import *   # noqa
-# ----------------------------------------------------------------------------
+import os
 
-__all__ = []
-# from .example_mod import *   # noqa
-# Then you can be explicit to control what ends up in the namespace,
+__all__ = ['__version__', 'test']
 
-# or you can keep everything from the subpackage with the following instead
-# __all__ += example_mod.__all__
+from astropy.tests.runner import TestRunner
+test = TestRunner.make_test_runner_in(os.path.dirname(__file__))
 
-from .operators import *
-from .sed import *
-from .extlaws import *
-from .likelihoods import *
-from .version import *
-
-
-__all__ += sed.__all__
-__all__ += extlaws.__all__
-__all__ += operators.__all__
-__all__ += likelihoods.__all__
-__version__ = version
+from paintbox.operators import LOSVDConv, Resample
+from paintbox.sed import ParametricModel, NonParametricModel, Polynomial, \
+                         CompoundSED
+from paintbox.extlaws import CCM89, C2000
+from paintbox.likelihoods import StudTLogLike, StudT2LogLike, NormalLogLike, \
+                                 Normal2LogLike
+from paintbox.ssp_utils import CvD18, MILES
+from paintbox.logspace_dispersion import disp2vel, logspace_dispersion
+from paintbox.convolve import broad2lick, broad2res
+from paintbox.version import version as __version__

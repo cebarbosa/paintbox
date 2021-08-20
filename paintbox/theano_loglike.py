@@ -9,7 +9,7 @@ Author : Carlos Eduardo Barbosa
 import numpy as np
 import theano.tensor as tt
 
-from ..likelihoods import *
+from likelihoods import *
 
 __all__ = ["TheanoLogLike"]
 

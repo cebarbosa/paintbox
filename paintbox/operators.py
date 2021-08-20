@@ -10,7 +10,7 @@ import astropy.constants as const
 from scipy.ndimage import convolve1d
 from spectres import spectres
 
-from .sed import PaintboxBase
+from paintbox.sed import PaintboxBase
 
 __all__ = ["LOSVDConv", "Resample"]
 

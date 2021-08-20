@@ -13,7 +13,7 @@ from scipy.special import legendre
 import matplotlib.pyplot as plt
 
 __all__ = ["ParametricModel", "NonParametricModel", "Polynomial",
-           "CompoundSED"]
+           "CompoundSED", "PaintboxBase"]
 
 class PaintboxBase():
 
