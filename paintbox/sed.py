@@ -12,8 +12,7 @@ from scipy.interpolate import RegularGridInterpolator
 from scipy.special import legendre
 import matplotlib.pyplot as plt
 
-__all__ = ["ParametricModel", "NonParametricModel", "Polynomial",
-           "_CompositeSED"]
+__all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
 
 class PaintboxBase():
 
@@ -207,6 +206,8 @@ class ParametricModel(PaintboxBase):
         The SED templates with dimensions (len(params), len(wave))
 
     """
+    __doc__ += PaintboxBase.__doc__
+    
     def __init__(self, wave, params, templates):
         """ """
         self.wave = wave
