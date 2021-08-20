@@ -12,7 +12,8 @@ from scipy.interpolate import RegularGridInterpolator
 from scipy.special import legendre
 import matplotlib.pyplot as plt
 
-__all__ = ["ParametricModel", "NonParametricModel", "Polynomial"]
+__all__ = ["ParametricModel", "NonParametricModel", "Polynomial",
+           "CompoundSED"]
 
 class PaintboxBase():
 
@@ -37,11 +38,11 @@ class PaintboxBase():
 
     def __add__(self, o):
         """ Addition between two SED components. """
-        return _CompositeSED(self, o, "+")
+        return CompoundSED(self, o, "+")
 
     def __mul__(self, o):
         """  Multiplication between two SED components. """
-        return _CompositeSED(self, o, "*")
+        return CompoundSED(self, o, "*")
 
     def fix(self, fixed_vals):
         """ Fix a set of parameters in parnames using a dictionary. """
@@ -56,12 +57,13 @@ class PaintboxBase():
         plotter = getattr(ax, plottype)
         plotter(self.wave, self(theta), **kwargs)
 
-class _CompositeSED(PaintboxBase):
+class CompoundSED(PaintboxBase):
     """ Combination of SED models.
 
-    The CompositeSED class allows the combination of any number of SED model
+    The CompoundSED class allows the combination of any number of SED model
     components using addition and / or multiplication, as long as the input
-    classes have the same wavelength dispersion.
+    classes have the same wavelength dispersion. It can be accessed directly,
+    but the recommended way is to use model operators.
 
     Attributes
     ----------
@@ -206,7 +208,6 @@ class ParametricModel(PaintboxBase):
         The SED templates with dimensions (len(params), len(wave))
 
     """
-
     def __init__(self, wave, params, templates):
         """ """
         self.wave = wave
@@ -276,11 +277,11 @@ class ParametricModel(PaintboxBase):
 
     def __add__(self, o):
         """ Addition between two SED components. """
-        return _CompositeSED(self, o, "+")
+        return CompoundSED(self, o, "+")
 
     def __mul__(self, o):
         """  Multiplication between two SED components. """
-        return _CompositeSED(self, o, "*")
+        return CompoundSED(self, o, "*")
 
     @property
     def limits(self):
